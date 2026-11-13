@@ -1,3 +1,4 @@
+import {handoverChecks} from './handover-checks';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {io,Socket} from 'socket.io-client';
@@ -60,6 +61,7 @@ export async function operationsChecks(t:any,app:any,db:any,call:any,api:any,pai
       assert.equal(result.body.data.refundReviewRequired,true);assert.equal(result.body.data.paymentStatus,'PAID');
     });
     await t.test('captured payment kitchen-to-rider lifecycle, privacy, outbox retry and reconnect',async()=>{
+      const paymentsBefore=await db.paymentAttempt.findMany({where:{orderId:paid.id}});
       let o=await db.order.findUnique({where:{id:paid.id}});
       o=(await change(o,'accept').expect(200)).body.data;
       await change({...o,version:o.version-1},'accept').expect(409);
@@ -79,9 +81,14 @@ export async function operationsChecks(t:any,app:any,db:any,call:any,api:any,pai
       const deliveries=await call('get','operations/delivery/orders',1).expect(200);assert.ok(deliveries.body.data.items.some((v:any)=>v.id===o.id));
       await dispatcher.dispatch();await new Promise(r=>setTimeout(r,50));assert.ok(received[1].some(e=>e.eventType==='RIDER_ASSIGNED'));
       const customer=sockets.find(s=>s.connected&&((s.auth as any).token===tokens[0]))!;customer.disconnect();
-      o=(await change(o,'pickup',1).expect(200)).body.data;o=(await change(o,'out-for-delivery',1).expect(200)).body.data;o=(await change(o,'deliver',1).expect(200)).body.data;
+      o=(await change(o,'pickup',1).expect(200)).body.data;o=(await change(o,'out-for-delivery',1).expect(200)).body.data;await change(o,'deliver',1).expect(409);
+      const pin=(await call('post',`orders/${o.id}/handover/issue`).send({}).expect(200)).body.data.pin;
+      o=(await call('post',`operations/delivery/orders/${o.id}/complete-handover`,1).send({pin,expectedVersion:o.version}).expect(200)).body.data;
       await connect(tokens[0]);assert.equal((await call('get',`orders/${o.id}`).expect(200)).body.data.status,'DELIVERED');
       await change(o,'pickup',1).expect(409);assert.equal(o.paymentStatus,'PAID');
+      assert.deepEqual(await db.paymentAttempt.findMany({where:{orderId:paid.id}}),paymentsBefore);
+      await dispatcher.dispatch();await new Promise(r=>setTimeout(r,30));
+      assert.equal(JSON.stringify(received).includes('encryptedPin'),false);assert.equal(JSON.stringify(received).includes('verifier'),false);assert.equal(JSON.stringify(received).includes('"pin"'),false);
       assert.equal((await db.deliveryAssignment.findUnique({where:{orderId:o.id}})).status,'DELIVERED');
       const events=await db.orderEvent.findMany({where:{orderId:o.id,sequence:{not:null}},orderBy:{sequence:'asc'}});assert.equal(new Set(events.map((e:any)=>e.sequence)).size,events.length);
       await db.authSession.updateMany({where:{userId:users[2].id},data:{revokedAt:new Date()}});await gateway.revalidate();await new Promise(r=>setTimeout(r,30));
@@ -89,6 +96,7 @@ export async function operationsChecks(t:any,app:any,db:any,call:any,api:any,pai
       await change(await fixture(),'accept').expect(401);
       await db.authSession.updateMany({where:{userId:users[2].id},data:{revokedAt:null}});
     });
+    await handoverChecks(t,app,db,call,api,fixture,users);
     await t.test('socket server restart reconnects and pending outbox survives',async()=>{
       const {createApp}=require('../dist/src/main');
       let second=await createApp();await second.listen(0,'127.0.0.1');

@@ -434,6 +434,7 @@ model CartQuote {
 }
 
 model Order {
+  handover                DeliveryHandover?
   version                 Int                 @default(1)
   rejectionReason         String?             @db.VarChar(300)
   refundReviewRequired    Boolean             @default(false)
@@ -574,18 +575,19 @@ model OrderEvent {
 }
 
 model DeliveryAssignment {
-  id           String      @id @default(uuid()) @db.Uuid
-  orderId      String      @unique @db.Uuid
-  riderId      String      @db.Uuid
-  assignedById String      @db.Uuid
-  status       OrderStatus @default(READY_FOR_PICKUP)
-  assignedAt   DateTime    @default(now()) @db.Timestamptz(3)
-  pickedUpAt   DateTime?   @db.Timestamptz(3)
-  deliveredAt  DateTime?   @db.Timestamptz(3)
-  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
-  order        Order       @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  rider        User        @relation("AssignedRider", fields: [riderId], references: [id], onDelete: Restrict)
-  assignedBy   User        @relation("Dispatcher", fields: [assignedById], references: [id], onDelete: Restrict)
+  handovers    DeliveryHandover[]
+  id           String             @id @default(uuid()) @db.Uuid
+  orderId      String             @unique @db.Uuid
+  riderId      String             @db.Uuid
+  assignedById String             @db.Uuid
+  status       OrderStatus        @default(READY_FOR_PICKUP)
+  assignedAt   DateTime           @default(now()) @db.Timestamptz(3)
+  pickedUpAt   DateTime?          @db.Timestamptz(3)
+  deliveredAt  DateTime?          @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(3)
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  rider        User               @relation("AssignedRider", fields: [riderId], references: [id], onDelete: Restrict)
+  assignedBy   User               @relation("Dispatcher", fields: [assignedById], references: [id], onDelete: Restrict)
 
   @@index([riderId, status])
 }
@@ -600,4 +602,44 @@ model OutboxEvent {
   attempts      Int        @default(0)
 
   @@index([dispatchedAt, nextAttemptAt, createdAt])
+}
+
+model DeliveryHandover {
+  id                        String             @id @default(uuid()) @db.Uuid
+  orderId                   String             @unique @db.Uuid
+  assignmentId              String             @db.Uuid
+  boundRiderId              String             @db.Uuid
+  challengeVersion          Int
+  verifier                  String             @db.Char(64)
+  encryptedPin              String?            @db.VarChar(160)
+  keyVersion                String             @db.VarChar(40)
+  issuedAt                  DateTime           @db.Timestamptz(3)
+  expiresAt                 DateTime           @db.Timestamptz(3)
+  nextIssueAt               DateTime           @db.Timestamptz(3)
+  issueCount                Int                @default(1)
+  failedAttempts            Int                @default(0)
+  lastFailedAt              DateTime?          @db.Timestamptz(3)
+  lockedAt                  DateTime?          @db.Timestamptz(3)
+  lockedUntil               DateTime?          @db.Timestamptz(3)
+  verifiedAt                DateTime?          @db.Timestamptz(3)
+  consumedAt                DateTime?          @db.Timestamptz(3)
+  invalidatedAt             DateTime?          @db.Timestamptz(3)
+  completionExpectedVersion Int?
+  completedOrderVersion     Int?
+  updatedAt                 DateTime           @updatedAt @db.Timestamptz(3)
+  order                     Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  assignment                DeliveryAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  audit                     HandoverAudit[]
+}
+
+model HandoverAudit {
+  id               String           @id @default(uuid()) @db.Uuid
+  handoverId       String           @db.Uuid
+  challengeVersion Int
+  actorUserId      String           @db.Uuid
+  action           String           @db.VarChar(40)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  handover         DeliveryHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+
+  @@index([handoverId, createdAt, id])
 }

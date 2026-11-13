@@ -12,7 +12,6 @@ export const transitions:Record<string,{from:OrderStatus;to:OrderStatus;event:st
   ready:{from:'PREPARING',to:'READY_FOR_PICKUP',event:'ORDER_READY',role:'RESTAURANT_OWNER'},
   pickup:{from:'READY_FOR_PICKUP',to:'PICKED_UP',event:'ORDER_PICKED_UP',role:'DELIVERY_PARTNER'},
   'out-for-delivery':{from:'PICKED_UP',to:'OUT_FOR_DELIVERY',event:'OUT_FOR_DELIVERY',role:'DELIVERY_PARTNER'},
-  deliver:{from:'OUT_FOR_DELIVERY',to:'DELIVERED',event:'ORDER_DELIVERED',role:'DELIVERY_PARTNER'},
 };
 export function eligible(order:any){
   return order.paymentMethod==='RAZORPAY_TEST'
@@ -41,6 +40,7 @@ export class OperationsService {
     const {paymentAttempts,requestHash,idempotencyKey,pricingSnapshot,customerId,...safe}=o;
     if(role!=='CUSTOMER'&&role!=='DELIVERY_PARTNER')delete safe.deliveryAddressSnapshot;
     const actions=Object.entries(transitions).filter(([action,t])=>t.role===role&&t.from===o.status&&(action!=='accept'||eligible(o))).map(([a])=>a);
+    if(role==='DELIVERY_PARTNER'&&o.status==='OUT_FOR_DELIVERY')actions.push('complete-handover');
     return {...safe,availableActions:actions,paymentEligible:eligible(o)};
   }
   async detail(p:AuthenticatedPrincipal,id:string,role:string){return this.database.client.$transaction(async tx=>{
@@ -56,6 +56,7 @@ export class OperationsService {
     await this.current(tx,p,'ADMIN');return tx.user.findMany({where:{status:'ACTIVE',roles:{some:{roleName:'DELIVERY_PARTNER'}},riderAssignments:{none:{status:{not:'DELIVERED'}}}},select:{id:true,displayName:true},orderBy:{displayName:'asc'},take:100});
   });}
   async mutate(p:AuthenticatedPrincipal,id:string,action:string,expectedVersion:number,reason?:string,riderId?:string){
+    if(action==='deliver'||action==='complete-handover')throw new ConflictException('Customer handover PIN verification is required');
     const rule=transitions[action];if(!rule&&action!=='assign')throw new NotFoundException('Unknown operation');
     return this.database.client.$transaction(async tx=>{
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${id}::uuid FOR UPDATE`;
@@ -74,7 +75,7 @@ export class OperationsService {
       }
       const next=action==='assign'?o.status:rule.to,version=o.version+1;
       await tx.order.update({where:{id},data:{status:next,version,...(action==='reject'?{rejectionReason:reason!.trim(),refundReviewRequired:o.paymentStatus==='PAID'}:{})}});
-      if(role==='DELIVERY_PARTNER')await tx.deliveryAssignment.update({where:{orderId:id},data:{status:next,...(action==='pickup'?{pickedUpAt:new Date()}:{}),...(action==='deliver'?{deliveredAt:new Date()}:{})}});
+      if(role==='DELIVERY_PARTNER')await tx.deliveryAssignment.update({where:{orderId:id},data:{status:next,...(action==='pickup'?{pickedUpAt:new Date()}:{})}});
       const event=await tx.orderEvent.create({data:{orderId:id,actorUserId:p.userId,eventType:action==='assign'?'RIDER_ASSIGNED':rule.event,previousStatus:o.status,newStatus:next,sequence:version,metadata:action==='reject'?{reason:reason!.trim(),refundReviewRequired:o.paymentStatus==='PAID'}:{}}});
       await queueEvent(tx,event.id);
       return this.present(await tx.order.findUniqueOrThrow({where:{id},include:operationInclude}),role);

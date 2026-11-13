@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import request from 'supertest';
 import {paymentChecks} from './payment-checks';
@@ -9,6 +9,7 @@ import {operationsChecks} from './operations-checks';
 
 test('real cart, exact order pricing and atomic idempotent checkout',{timeout:120000},async t=>{
   const url=process.env.TEST_DATABASE_URL!;assert.equal(new URL(url).pathname,'/food_delivery_test');
+  process.env.HANDOVER_HMAC_KEY=randomBytes(32).toString('hex');process.env.HANDOVER_ENCRYPTION_KEY=randomBytes(32).toString('hex');
   process.env.DATABASE_URL=url;process.env.NODE_ENV='test';process.env.DEMO_CHECKOUT_ENABLED='true';
   execFileSync(process.execPath,['node_modules/prisma/build/index.js','migrate','deploy'],{env:{...process.env,DIRECT_URL:url},stdio:'pipe'});
   const {createDatabase}=require('../dist/src/database/client'),{createApp}=require('../dist/src/main');
@@ -138,6 +139,7 @@ test('real cart, exact order pricing and atomic idempotent checkout',{timeout:12
     process.env.DEMO_CHECKOUT_ENABLED='true';const userIds=users.map(u=>u.id);
     const orders=await db.order.findMany({where:{customerId:{in:userIds}},select:{id:true}}),orderIds=orders.map((o:any)=>o.id);
     await db.paymentWebhookEvent.deleteMany({where:{providerEventId:{startsWith:'p6test_'}}});
+    await db.deliveryHandover.deleteMany({where:{orderId:{in:orderIds}}});
     await db.deliveryAssignment.deleteMany({where:{orderId:{in:orderIds}}});
     await db.paymentAttempt.deleteMany({where:{orderId:{in:orderIds}}});
     await db.orderEvent.deleteMany({where:{orderId:{in:orderIds}}});await db.orderItemAddOn.deleteMany({where:{orderItem:{orderId:{in:orderIds}}}});await db.orderItem.deleteMany({where:{orderId:{in:orderIds}}});await db.order.deleteMany({where:{id:{in:orderIds}}});

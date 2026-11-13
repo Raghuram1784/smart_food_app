@@ -47,3 +47,20 @@ test('health reports a safe 503 when database access fails', async () => {
   const controller = new HealthController({ client: { $queryRaw: async () => { throw new Error('private database detail'); } } });
   await assert.rejects(controller.health(), (e: any) => e.getStatus() === 503 && e.message === 'Database unavailable');
 });
+
+
+test('handover cryptography preserves zeros, binds context and rejects tampering',()=>{
+  const c=require('../dist/src/modules/operations/handover.crypto');
+  const {randomBytes}=require('node:crypto');const key=randomBytes(32),enc=randomBytes(32);
+  const b={orderId:'order',assignmentId:'assignment',boundRiderId:'rider',challengeVersion:1,issuedAt:new Date(),expiresAt:new Date(Date.now()+600000),keyVersion:'v1'};
+  assert.equal(c.formatPin(0),'000000');assert.equal(c.formatPin(1),'000001');assert.equal(c.formatPin(999999),'999999');
+  for(let i=0;i<100;i++)assert.match(c.generatePin(),/^\d{6}$/);
+  const v=c.pinVerifier('000001',b,key),sealed=c.sealPin('000001',b,enc);
+  assert.equal(c.matchesPin('000001',b,v,key),true);assert.equal(c.matchesPin('000002',b,v,key),false);
+  assert.equal(c.openPin(sealed,b,enc),'000001');assert.notEqual(c.sealPin('000001',b,enc),sealed);
+  for(const patch of [{orderId:'another'},{assignmentId:'another'},{boundRiderId:'another'},{challengeVersion:2},{expiresAt:new Date(0)}]){
+    assert.equal(c.matchesPin('000001',{...b,...patch},v,key),false);assert.throws(()=>c.openPin(sealed,{...b,...patch},enc));
+  }
+  assert.throws(()=>c.openPin(sealed,b,key));assert.throws(()=>c.openPin('corrupt',b,enc));
+  const bytes=Buffer.from(sealed,'base64');bytes[15]^=1;assert.throws(()=>c.openPin(bytes.toString('base64'),b,enc));
+});

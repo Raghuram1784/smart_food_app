@@ -1,3 +1,4 @@
+import 'customer_handover_card.dart';
 import 'live_orders.dart';
 import 'payment_panel.dart';
 
@@ -533,6 +534,11 @@ class OrderDetailScreen extends ConsumerWidget {
                 children: [
                   LiveOrderBar(path: 'orders/$id', orderId: id),
                   OrderTimeline(order: o),
+                  CustomerHandoverCard(
+                    order: o,
+                    onHandoverChanged: () =>
+                        ref.invalidate(commerceReadProvider('orders/$id')),
+                  ),
                   _OrderReferenceCard(order: o),
                   payment,
                   const SizedBox(height: 12),
