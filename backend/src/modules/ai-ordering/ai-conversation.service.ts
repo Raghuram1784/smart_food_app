@@ -9,7 +9,10 @@ import {
 import { randomUUID } from 'node:crypto';
 
 import { AuthenticatedPrincipal } from '../auth/auth.types';
-import { FoodIntent } from './food-intent';
+import {
+  FoodIntent,
+  mergeIntentWithClears,
+} from './food-intent';
 import { GeminiIntentService } from './gemini-intent.service';
 import { RecommendationService } from './recommendation.service';
 
@@ -117,11 +120,12 @@ export class AiConversationService {
     this.inFlight.add(key);
 
     try {
-      const update = await this.gemini.extract(message);
+      const update = await this.gemini.extractUpdate(message);
 
-      const intent = mergeIntents(
+      const intent = mergeIntentWithClears(
         previous?.intent ?? null,
-        update,
+        update.intent,
+	update.clearFields,
       );
 
       if (

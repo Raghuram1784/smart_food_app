@@ -79,3 +79,64 @@ export function normalizeFoodIntent(raw: unknown): FoodIntent {
     clarificationQuestion: text('clarificationQuestion', 240),
   };
 }
+
+export const CLEARABLE_INTENT_FIELDS = [
+  'dishQuery',
+  'quantity',
+  'vegetarian',
+  'maxPayablePaise',
+  'minRating',
+  'maxDeliveryMinutes',
+] as const;
+
+export type ClearableIntentField =
+  typeof CLEARABLE_INTENT_FIELDS[number];
+
+export function mergeIntentWithClears(
+  previous: FoodIntent | null,
+  update: FoodIntent,
+  clearFields: unknown = [],
+): FoodIntent {
+  if (
+    !Array.isArray(clearFields) ||
+    clearFields.length > CLEARABLE_INTENT_FIELDS.length ||
+    clearFields.some(
+      field =>
+        typeof field !== 'string' ||
+        !CLEARABLE_INTENT_FIELDS.includes(
+          field as ClearableIntentField,
+        ),
+    ) ||
+    new Set(clearFields).size !== clearFields.length
+  ) {
+    throw new Error('Invalid intent fields to clear');
+  }
+
+  const cleared = clearFields as ClearableIntentField[];
+
+  for (const field of cleared) {
+    if (update[field] !== null) {
+      throw new Error(`Conflicting update for ${field}`);
+    }
+  }
+
+  const merged: FoodIntent = {
+    dishQuery: update.dishQuery ?? previous?.dishQuery ?? null,
+    quantity: update.quantity ?? previous?.quantity ?? null,
+    vegetarian: update.vegetarian ?? previous?.vegetarian ?? null,
+    maxPayablePaise:
+      update.maxPayablePaise ?? previous?.maxPayablePaise ?? null,
+    minRating: update.minRating ?? previous?.minRating ?? null,
+    maxDeliveryMinutes:
+      update.maxDeliveryMinutes ??
+      previous?.maxDeliveryMinutes ??
+      null,
+    clarificationQuestion: update.clarificationQuestion,
+  };
+
+  for (const field of cleared) {
+    merged[field] = null;
+  }
+
+  return merged;
+}

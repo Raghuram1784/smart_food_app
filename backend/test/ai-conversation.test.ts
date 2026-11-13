@@ -26,7 +26,6 @@ const emptyIntent = () => ({
 
 function createHarness() {
   const receivedIntents: any[] = [];
-
   const gemini = {
     extract: async (message: string) => {
       if (message === 'start') {
@@ -62,9 +61,26 @@ function createHarness() {
         };
       }
 
+      if (message === 'clear ETA') {
+        return emptyIntent();
+      }
+
       throw new Error('Unexpected test message');
     },
+
+    async extractUpdate(message: string) {
+      const intent = await this.extract(message);
+
+      return {
+        intent,
+        clearFields:
+          message === 'clear ETA'
+            ? ['maxDeliveryMinutes']
+            : [],
+      };
+    },
   };
+
 
   const option = {
     menuItemId: 'wn-margherita',
@@ -206,4 +222,39 @@ test('old conversations are unavailable after restart', async () => {
     ),
     (error: any) => error.getStatus() === 404,
   );
+});
+
+test('clears ETA without forgetting other preferences', async () => {
+  const h = createHarness();
+  const user = customer('session-clear-eta');
+
+  // Establish original preferences.
+  const first = await h.service.ask(
+    'start',
+    'hitec-city',
+    user,
+  );
+
+  assert.equal(first.intent.maxDeliveryMinutes, 35);
+
+  // Customer removes only the delivery-time constraint.
+  const second = await h.service.ask(
+    'clear ETA',
+    'hitec-city',
+    user,
+    first.conversationId,
+  );
+
+  // Original requirements remain unchanged.
+  assert.equal(second.intent.dishQuery, 'pizza');
+  assert.equal(second.intent.quantity, 2);
+  assert.equal(second.intent.vegetarian, true);
+  assert.equal(second.intent.maxPayablePaise, 50000);
+  assert.equal(second.intent.minRating, 4);
+
+  // The delivery-time limit must be removed.
+  assert.equal(second.intent.maxDeliveryMinutes, null);
+
+  // The ₹500 budget is still insufficient.
+  assert.equal(second.status, 'NO_EXACT_MATCH');
 });
