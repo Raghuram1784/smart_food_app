@@ -1,0 +1,14 @@
+{
+  "localities": [
+    { "id": "gachibowli", "name": "Gachibowli", "city": "Hyderabad", "displayOrder": 0 },
+    { "id": "madhapur", "name": "Madhapur", "city": "Hyderabad", "displayOrder": 1 },
+    { "id": "hitec-city", "name": "HITEC City", "city": "Hyderabad", "displayOrder": 2 },
+    { "id": "kondapur", "name": "Kondapur", "city": "Hyderabad", "displayOrder": 3 },
+    { "id": "kukatpally", "name": "Kukatpally / KPHB", "city": "Hyderabad", "displayOrder": 4 },
+    { "id": "jubilee-hills", "name": "Jubilee Hills", "city": "Hyderabad", "displayOrder": 5 },
+    { "id": "banjara-hills", "name": "Banjara Hills", "city": "Hyderabad", "displayOrder": 6 },
+    { "id": "ameerpet", "name": "Ameerpet", "city": "Hyderabad", "displayOrder": 7 },
+    { "id": "mehdipatnam", "name": "Mehdipatnam", "city": "Hyderabad", "displayOrder": 8 },
+    { "id": "secunderabad", "name": "Secunderabad", "city": "Hyderabad", "displayOrder": 9 }
+  ]
+}

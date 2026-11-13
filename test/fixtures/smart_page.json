@@ -1,0 +1,556 @@
+{
+  "items": [
+    {
+      "quote": {
+        "item": {
+          "id": "dosa",
+          "restaurantId": "tiffin",
+          "categoryId": "dosa",
+          "sectionId": "tiffin-from-the-griddle",
+          "name": "Masala dosa",
+          "description": "Golden rice-and-lentil dosa with a spiced potato filling, coconut chutney and sambar.",
+          "basePricePaise": 14900,
+          "imageKey": "dosa",
+          "isVegetarian": true,
+          "availabilityStatus": "AVAILABLE",
+          "availabilityReason": null,
+          "availabilityUpdatedAt": "2026-11-11T16:01:49.204Z",
+          "version": 1,
+          "displayOrder": 4,
+          "createdAt": "2026-11-11T16:01:49.204Z",
+          "updatedAt": "2026-11-11T22:12:39.899Z",
+          "category": {
+            "id": "dosa",
+            "name": "Dosa & Tiffins",
+            "slug": "dosa",
+            "description": null,
+            "imageKey": "dosa",
+            "displayOrder": 1,
+            "isActive": true,
+            "createdAt": "2026-11-11T16:01:49.083Z",
+            "updatedAt": "2026-11-11T17:12:43.448Z"
+          },
+          "section": {
+            "id": "tiffin-from-the-griddle",
+            "restaurantId": "tiffin",
+            "name": "From the griddle",
+            "displayOrder": 4
+          },
+          "restaurant": {
+            "id": "tiffin",
+            "name": "The Tiffin Room",
+            "slug": "the-tiffin-room",
+            "description": "Crisp dosas, comforting curries and everyday Indian favourites. A little taste of home, made with care.",
+            "address": "Madhapur, Hyderabad (Demo)",
+            "latitude": null,
+            "longitude": null,
+            "rating": 4.8,
+            "reviewCount": null,
+            "estimatedDeliveryMinutes": 20,
+            "estimatedDeliveryMaxMinutes": 30,
+            "deliveryAvailability": true,
+            "imageKey": "dosa",
+            "cuisineDescription": "Indian · Vegetarian kitchen",
+            "operatingStatus": "OPEN",
+            "isDemo": true,
+            "displayOrder": 0,
+            "localityId": "madhapur",
+            "createdAt": "2026-11-11T16:01:49.117Z",
+            "updatedAt": "2026-11-11T17:12:43.476Z",
+            "cuisines": [
+              {
+                "id": "indian",
+                "name": "Indian"
+              },
+              {
+                "id": "south-indian",
+                "name": "South Indian"
+              },
+              {
+                "id": "north-indian",
+                "name": "North Indian"
+              }
+            ],
+            "locality": {
+              "id": "madhapur",
+              "name": "Madhapur",
+              "city": "Hyderabad"
+            },
+            "startingPricePaise": 11900,
+            "serviceAreas": [
+              {
+                "id": "madhapur",
+                "name": "Madhapur, Hyderabad",
+                "estimatedMinutes": 20
+              },
+              {
+                "id": "hitec-city",
+                "name": "HITEC City, Hyderabad",
+                "estimatedMinutes": 28
+              },
+              {
+                "id": "gachibowli",
+                "name": "Gachibowli, Hyderabad",
+                "estimatedMinutes": 31
+              },
+              {
+                "id": "kondapur",
+                "name": "Kondapur, Hyderabad",
+                "estimatedMinutes": 34
+              },
+              {
+                "id": "jubilee-hills",
+                "name": "Jubilee Hills, Hyderabad",
+                "estimatedMinutes": 37
+              }
+            ]
+          },
+          "variants": [],
+          "addOns": []
+        },
+        "area": {
+          "id": "madhapur",
+          "name": "Madhapur"
+        },
+        "quantity": 1,
+        "selectedVariant": null,
+        "selectedAddOns": [],
+        "basePaise": 14900,
+        "variantPaise": 0,
+        "addOnPaise": 0,
+        "subtotalPaise": 14900,
+        "packagingPaise": 1000,
+        "deliveryPaise": 2000,
+        "platformPaise": 500,
+        "discountPaise": 0,
+        "taxPaise": 0,
+        "finalPayablePaise": 18400,
+        "adjustments": [
+          {
+            "component": "PACKAGING",
+            "ruleCode": "DEMO_PACKAGING_V1",
+            "amountPaise": 1000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "DELIVERY",
+            "ruleCode": "DEMO_DELIVERY_V1",
+            "amountPaise": 2000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "PLATFORM",
+            "ruleCode": "DEMO_PLATFORM_V1",
+            "amountPaise": 500,
+            "basis": "once per single-restaurant quote"
+          }
+        ],
+        "currency": "INR",
+        "illustrative": true,
+        "orderable": true,
+        "estimatedMinutes": 20,
+        "quotedAt": "2026-11-12T05:16:25.770Z",
+        "expiresAt": "2026-11-12T05:18:25.770Z",
+        "pricingRuleVersion": "a002ec2ccb79e32c26bf81a9",
+        "quoteFingerprint": "692ef83d2f01923080ad5b90246e3fb2cc6c5057e2408130c404f0007bdc1b1f",
+        "policyVersion": "single-meal-v1",
+        "notice": "Illustrative single-meal quote. No order is placed. Re-quote before any future checkout; availability and prices are not reserved.",
+        "taxNotice": "No tax rule configured; no tax added to this demo quote."
+      },
+      "explanations": [
+        "Eligible for Madhapur.",
+        "One item with configured fees included.",
+        "Matches the stored vegetarian attribute.",
+        "Illustrative delivery estimate is within 60 minutes."
+      ],
+      "valueScore": 8580,
+      "relevance": 6,
+      "rating": 4.8
+    },
+    {
+      "quote": {
+        "item": {
+          "id": "st-karam-dosa",
+          "restaurantId": "suprabhat-tiffins-kuka",
+          "categoryId": "dosa",
+          "sectionId": "suprabhat-tiffins-kuka-tiffin-specials",
+          "name": "Nellore Karam Dosa",
+          "description": "Fiery red-chilli garlic paste smeared inside a crisp dosa with roasted gram podi and potato masala.",
+          "basePricePaise": 12900,
+          "imageKey": "dosa",
+          "isVegetarian": true,
+          "availabilityStatus": "AVAILABLE",
+          "availabilityReason": null,
+          "availabilityUpdatedAt": "2026-11-11T17:08:26.733Z",
+          "version": 1,
+          "displayOrder": 120,
+          "createdAt": "2026-11-11T17:08:26.733Z",
+          "updatedAt": "2026-11-11T17:12:44.020Z",
+          "category": {
+            "id": "dosa",
+            "name": "Dosa & Tiffins",
+            "slug": "dosa",
+            "description": null,
+            "imageKey": "dosa",
+            "displayOrder": 1,
+            "isActive": true,
+            "createdAt": "2026-11-11T16:01:49.083Z",
+            "updatedAt": "2026-11-11T17:12:43.448Z"
+          },
+          "section": {
+            "id": "suprabhat-tiffins-kuka-tiffin-specials",
+            "restaurantId": "suprabhat-tiffins-kuka",
+            "name": "Tiffin Specials",
+            "displayOrder": 0
+          },
+          "restaurant": {
+            "id": "suprabhat-tiffins-kuka",
+            "name": "Suprabhat Tiffins & Meals",
+            "slug": "suprabhat-tiffins-meals-suprabhat-tiffins-kuka",
+            "description": "Home-style Andhra banana-leaf meals, Nellore karam dosas and fluffy butter-podi idlis across KPHB.",
+            "address": "Kukatpally / KPHB, Hyderabad (Demo)",
+            "latitude": null,
+            "longitude": null,
+            "rating": 4.6,
+            "reviewCount": null,
+            "estimatedDeliveryMinutes": 20,
+            "estimatedDeliveryMaxMinutes": 30,
+            "deliveryAvailability": true,
+            "imageKey": "meals",
+            "cuisineDescription": "South Indian · Andhra · Banana Leaf Meals",
+            "operatingStatus": "OPEN",
+            "isDemo": true,
+            "displayOrder": 21,
+            "localityId": "kukatpally",
+            "createdAt": "2026-11-11T17:08:25.895Z",
+            "updatedAt": "2026-11-11T17:12:43.637Z",
+            "cuisines": [
+              {
+                "id": "south-indian",
+                "name": "South Indian"
+              },
+              {
+                "id": "andhra",
+                "name": "Andhra"
+              }
+            ],
+            "locality": {
+              "id": "kukatpally",
+              "name": "Kukatpally / KPHB",
+              "city": "Hyderabad"
+            },
+            "startingPricePaise": 4900,
+            "serviceAreas": [
+              {
+                "id": "kukatpally",
+                "name": "Kukatpally / KPHB, Hyderabad",
+                "estimatedMinutes": 20
+              },
+              {
+                "id": "kondapur",
+                "name": "Kondapur, Hyderabad",
+                "estimatedMinutes": 28
+              },
+              {
+                "id": "ameerpet",
+                "name": "Ameerpet, Hyderabad",
+                "estimatedMinutes": 31
+              },
+              {
+                "id": "madhapur",
+                "name": "Madhapur, Hyderabad",
+                "estimatedMinutes": 34
+              }
+            ]
+          },
+          "variants": [],
+          "addOns": []
+        },
+        "area": {
+          "id": "madhapur",
+          "name": "Madhapur"
+        },
+        "quantity": 1,
+        "selectedVariant": null,
+        "selectedAddOns": [],
+        "basePaise": 12900,
+        "variantPaise": 0,
+        "addOnPaise": 0,
+        "subtotalPaise": 12900,
+        "packagingPaise": 1000,
+        "deliveryPaise": 2000,
+        "platformPaise": 500,
+        "discountPaise": 0,
+        "taxPaise": 0,
+        "finalPayablePaise": 16400,
+        "adjustments": [
+          {
+            "component": "PACKAGING",
+            "ruleCode": "DEMO_PACKAGING_V1",
+            "amountPaise": 1000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "DELIVERY",
+            "ruleCode": "DEMO_DELIVERY_V1",
+            "amountPaise": 2000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "PLATFORM",
+            "ruleCode": "DEMO_PLATFORM_V1",
+            "amountPaise": 500,
+            "basis": "once per single-restaurant quote"
+          }
+        ],
+        "currency": "INR",
+        "illustrative": true,
+        "orderable": true,
+        "estimatedMinutes": 34,
+        "quotedAt": "2026-11-12T05:16:25.770Z",
+        "expiresAt": "2026-11-12T05:18:25.770Z",
+        "pricingRuleVersion": "a002ec2ccb79e32c26bf81a9",
+        "quoteFingerprint": "3d19b4439995ae4c86e3bbaaca74243427c816e58b8d8635b9d3caddd4002999",
+        "policyVersion": "single-meal-v1",
+        "notice": "Illustrative single-meal quote. No order is placed. Re-quote before any future checkout; availability and prices are not reserved.",
+        "taxNotice": "No tax rule configured; no tax added to this demo quote."
+      },
+      "explanations": [
+        "Eligible for Madhapur.",
+        "One item with configured fees included.",
+        "Matches the stored vegetarian attribute.",
+        "Illustrative delivery estimate is within 60 minutes."
+      ],
+      "valueScore": 8280,
+      "relevance": 4,
+      "rating": 4.6
+    },
+    {
+      "quote": {
+        "item": {
+          "id": "gtc-ghee-masala-dosa",
+          "restaurantId": "gachibowli-tiffin",
+          "categoryId": "dosa",
+          "sectionId": "gachibowli-tiffin-dosas-tiffins",
+          "name": "Ghee Karam Masala Dosa",
+          "description": "Crisp golden dosa brushed with pure ghee and red chilli-garlic karam, filled with spiced potato masala.",
+          "basePricePaise": 13900,
+          "imageKey": "dosa",
+          "isVegetarian": true,
+          "availabilityStatus": "AVAILABLE",
+          "availabilityReason": null,
+          "availabilityUpdatedAt": "2026-11-11T17:08:26.301Z",
+          "version": 1,
+          "displayOrder": 29,
+          "createdAt": "2026-11-11T17:08:26.301Z",
+          "updatedAt": "2026-11-11T17:12:43.816Z",
+          "category": {
+            "id": "dosa",
+            "name": "Dosa & Tiffins",
+            "slug": "dosa",
+            "description": null,
+            "imageKey": "dosa",
+            "displayOrder": 1,
+            "isActive": true,
+            "createdAt": "2026-11-11T16:01:49.083Z",
+            "updatedAt": "2026-11-11T17:12:43.448Z"
+          },
+          "section": {
+            "id": "gachibowli-tiffin-dosas-tiffins",
+            "restaurantId": "gachibowli-tiffin",
+            "name": "Dosas & Tiffins",
+            "displayOrder": 0
+          },
+          "restaurant": {
+            "id": "gachibowli-tiffin",
+            "name": "Gachibowli Tiffin Co.",
+            "slug": "gachibowli-tiffin-co-gachibowli-tiffin",
+            "description": "Crisp ghee-karam dosas, podi idlis and morning filter coffee tailored for the Financial District breakfast rush.",
+            "address": "Gachibowli, Hyderabad (Demo)",
+            "latitude": null,
+            "longitude": null,
+            "rating": 4.5,
+            "reviewCount": null,
+            "estimatedDeliveryMinutes": 20,
+            "estimatedDeliveryMaxMinutes": 30,
+            "deliveryAvailability": true,
+            "imageKey": "dosa",
+            "cuisineDescription": "South Indian · Telangana · Breakfast",
+            "operatingStatus": "OPEN",
+            "isDemo": true,
+            "displayOrder": 11,
+            "localityId": "gachibowli",
+            "createdAt": "2026-11-11T17:08:25.656Z",
+            "updatedAt": "2026-11-11T17:12:43.524Z",
+            "cuisines": [
+              {
+                "id": "south-indian",
+                "name": "South Indian"
+              },
+              {
+                "id": "telangana",
+                "name": "Telangana"
+              }
+            ],
+            "locality": {
+              "id": "gachibowli",
+              "name": "Gachibowli",
+              "city": "Hyderabad"
+            },
+            "startingPricePaise": 5900,
+            "serviceAreas": [
+              {
+                "id": "gachibowli",
+                "name": "Gachibowli, Hyderabad",
+                "estimatedMinutes": 20
+              },
+              {
+                "id": "hitec-city",
+                "name": "HITEC City, Hyderabad",
+                "estimatedMinutes": 28
+              },
+              {
+                "id": "kondapur",
+                "name": "Kondapur, Hyderabad",
+                "estimatedMinutes": 31
+              },
+              {
+                "id": "madhapur",
+                "name": "Madhapur, Hyderabad",
+                "estimatedMinutes": 34
+              }
+            ]
+          },
+          "variants": [
+            {
+              "id": "481602e4-c6d9-4bcb-b70c-51d1d7badae7",
+              "menuItemId": "gtc-ghee-masala-dosa",
+              "name": "Single Dosa",
+              "priceAdjustmentPaise": 0,
+              "isAvailable": true,
+              "availabilityReason": null,
+              "availabilityUpdatedAt": "2026-11-11T17:08:26.303Z",
+              "createdAt": "2026-11-11T17:08:26.303Z",
+              "updatedAt": "2026-11-11T17:12:43.817Z"
+            },
+            {
+              "id": "5c780283-c785-46a2-9b27-babb8d20b2e9",
+              "menuItemId": "gtc-ghee-masala-dosa",
+              "name": "Two Dosa Combo",
+              "priceAdjustmentPaise": 11000,
+              "isAvailable": true,
+              "availabilityReason": null,
+              "availabilityUpdatedAt": "2026-11-11T17:08:26.304Z",
+              "createdAt": "2026-11-11T17:08:26.304Z",
+              "updatedAt": "2026-11-11T17:12:43.818Z"
+            }
+          ],
+          "addOns": [
+            {
+              "id": "338f8d2e-5521-47f7-889c-1581c4070445",
+              "name": "Extra Ghee",
+              "pricePaise": 3000,
+              "isAvailable": true,
+              "createdAt": "2026-11-11T17:08:25.524Z",
+              "updatedAt": "2026-11-11T17:12:43.466Z"
+            },
+            {
+              "id": "e46f37e1-e419-44a0-b1ae-a8e32660bc5a",
+              "name": "Extra Podi & Ghee",
+              "pricePaise": 3500,
+              "isAvailable": true,
+              "createdAt": "2026-11-11T17:08:25.541Z",
+              "updatedAt": "2026-11-11T17:12:43.472Z"
+            }
+          ]
+        },
+        "area": {
+          "id": "madhapur",
+          "name": "Madhapur"
+        },
+        "quantity": 1,
+        "selectedVariant": {
+          "id": "481602e4-c6d9-4bcb-b70c-51d1d7badae7",
+          "menuItemId": "gtc-ghee-masala-dosa",
+          "name": "Single Dosa",
+          "priceAdjustmentPaise": 0,
+          "isAvailable": true,
+          "availabilityReason": null,
+          "availabilityUpdatedAt": "2026-11-11T17:08:26.303Z",
+          "createdAt": "2026-11-11T17:08:26.303Z",
+          "updatedAt": "2026-11-11T17:12:43.817Z"
+        },
+        "selectedAddOns": [],
+        "basePaise": 13900,
+        "variantPaise": 0,
+        "addOnPaise": 0,
+        "subtotalPaise": 13900,
+        "packagingPaise": 1000,
+        "deliveryPaise": 2000,
+        "platformPaise": 500,
+        "discountPaise": 0,
+        "taxPaise": 0,
+        "finalPayablePaise": 17400,
+        "adjustments": [
+          {
+            "component": "PACKAGING",
+            "ruleCode": "DEMO_PACKAGING_V1",
+            "amountPaise": 1000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "DELIVERY",
+            "ruleCode": "DEMO_DELIVERY_V1",
+            "amountPaise": 2000,
+            "basis": "once per single-restaurant quote"
+          },
+          {
+            "component": "PLATFORM",
+            "ruleCode": "DEMO_PLATFORM_V1",
+            "amountPaise": 500,
+            "basis": "once per single-restaurant quote"
+          }
+        ],
+        "currency": "INR",
+        "illustrative": true,
+        "orderable": true,
+        "estimatedMinutes": 34,
+        "quotedAt": "2026-11-12T05:16:25.770Z",
+        "expiresAt": "2026-11-12T05:18:25.770Z",
+        "pricingRuleVersion": "a002ec2ccb79e32c26bf81a9",
+        "quoteFingerprint": "375c683b9af84aee7b3a4eb3a4b9fb61132b490342520bfde0f25f12567326e8",
+        "policyVersion": "single-meal-v1",
+        "notice": "Illustrative single-meal quote. No order is placed. Re-quote before any future checkout; availability and prices are not reserved.",
+        "taxNotice": "No tax rule configured; no tax added to this demo quote."
+      },
+      "explanations": [
+        "Eligible for Madhapur.",
+        "One item with configured fees included.",
+        "Matches the stored vegetarian attribute.",
+        "Illustrative delivery estimate is within 60 minutes."
+      ],
+      "valueScore": 8170,
+      "relevance": 6,
+      "rating": 4.5
+    }
+  ],
+  "total": 3,
+  "page": 1,
+  "limit": 20,
+  "area": {
+    "id": "madhapur",
+    "name": "Madhapur",
+    "city": "Hyderabad",
+    "displayOrder": 1,
+    "isActive": true,
+    "createdAt": "2026-11-11T17:08:25.438Z",
+    "updatedAt": "2026-11-11T17:12:43.428Z"
+  },
+  "sort": "value",
+  "availability": "available-only",
+  "dietaryAttributes": [
+    "vegetarian"
+  ],
+  "rankingPolicy": "value-v1: price 50%, sample rating 30%, illustrative time 20%; ties relevance, payable, ID",
+  "quoteBasis": "One item, cheapest available variant, no add-ons, quantity one. Independent meal quote, not a multi-item cart."
+}

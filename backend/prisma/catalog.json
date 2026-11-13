@@ -1,0 +1,132 @@
+{
+  "restaurants": [
+    [
+      "tiffin",
+      "The Tiffin Room",
+      "Indian · Vegetarian kitchen",
+      "Crisp dosas, comforting curries and everyday Indian favourites. A little taste of home, made with care.",
+      "dosa",
+      "20–30 min",
+      4.8
+    ],
+    [
+      "hearth",
+      "Hearth & Crust",
+      "Italian · Wood-fired kitchen",
+      "Slow dough. A little fire. A lot of soul. Discover a small menu of comforting Italian favourites.",
+      "pizza",
+      "25–35 min",
+      4.8
+    ],
+    [
+      "table",
+      "The Green Table",
+      "Mediterranean · Fresh bowls",
+      "Bright produce, generous bowls and simple ingredients that speak for themselves.",
+      "salad",
+      "20–30 min",
+      4.7
+    ],
+    [
+      "bun",
+      "Bun & Beyond",
+      "American · Burgers",
+      "Properly stacked burgers, toasted buns and familiar flavours, made for a good lunch.",
+      "burger",
+      "25–40 min",
+      4.6
+    ]
+  ],
+  "dishes": [
+    [
+      "pizza",
+      "hearth",
+      "Wood-fired pepperoni",
+      "Pepperoni, melted mozzarella and tomato on a crisp, golden crust.",
+      "Pizza",
+      "pizza",
+      349,
+      "From the oven"
+    ],
+    [
+      "pasta",
+      "hearth",
+      "Tomato & basil penne",
+      "Penne tossed in a rich tomato sauce with fresh basil and herbs.",
+      "Pasta",
+      "pasta",
+      229,
+      "Comfort classics"
+    ],
+    [
+      "salad",
+      "table",
+      "Mediterranean garden bowl",
+      "Crisp greens, tomato, olives and creamy feta with a light dressing.",
+      "Bowls",
+      "salad",
+      199,
+      "Freshly prepared"
+    ],
+    [
+      "burger",
+      "bun",
+      "Signature cheeseburger",
+      "A beef patty, bacon, melted cheese, tomato and greens in a toasted sesame bun.",
+      "Burgers",
+      "burger",
+      249,
+      "House favourites"
+    ],
+    [
+      "dosa",
+      "tiffin",
+      "Masala dosa",
+      "Golden rice-and-lentil dosa with a spiced potato filling, coconut chutney and sambar.",
+      "Dosa",
+      "dosa",
+      149,
+      "From the griddle"
+    ],
+    [
+      "idli",
+      "tiffin",
+      "Vegetable idli",
+      "Soft vegetable-studded idli served with coconut and tomato chutneys.",
+      "Idli",
+      "idli",
+      119,
+      "Tiffin favourites"
+    ],
+    [
+      "biryani",
+      "tiffin",
+      "Vegetable biryani",
+      "Fragrant spiced rice with carrots, peas and green beans.",
+      "Biryani",
+      "biryani",
+      229,
+      "Comfort classics"
+    ],
+    [
+      "paneer",
+      "tiffin",
+      "Paneer pepper masala",
+      "Paneer and bell peppers in a rich spiced gravy, finished with cream.",
+      "Paneer",
+      "paneer",
+      279,
+      "Comfort classics"
+    ]
+  ],
+  "categories": {
+    "Dosa": "dosa",
+    "Idli": "idli",
+    "Biryani": "biryani",
+    "Paneer": "paneer",
+    "Pizza": "pizza",
+    "Burgers": "burger",
+    "Pasta": "pasta",
+    "Bowls": "salad"
+  }
+}

@@ -1,0 +1,603 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OperatingStatus {
+  OPEN
+  CLOSED
+  PAUSED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  SOLD_OUT
+  UNAVAILABLE
+}
+
+enum PricingComponent {
+  PACKAGING
+  DELIVERY
+  PLATFORM
+  DISCOUNT
+  TAX
+}
+
+enum RoundingMode {
+  HALF_UP
+}
+
+model Locality {
+  customerAddresses CustomerAddress[]
+  id                String            @id @db.VarChar(64)
+  name              String            @unique @db.VarChar(100)
+  city              String            @db.VarChar(80)
+  displayOrder      Int               @default(0)
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(3)
+  restaurants       Restaurant[]
+
+  @@index([city, isActive, displayOrder])
+}
+
+model Restaurant {
+  carts                       Cart[]
+  orders                      Order[]
+  id                          String                   @id @db.VarChar(64)
+  name                        String                   @db.VarChar(160)
+  slug                        String                   @unique @db.VarChar(160)
+  description                 String
+  address                     String?
+  latitude                    Decimal?                 @db.Decimal(9, 6)
+  longitude                   Decimal?                 @db.Decimal(9, 6)
+  rating                      Decimal                  @db.Decimal(3, 2)
+  reviewCount                 Int?
+  estimatedDeliveryMinutes    Int
+  estimatedDeliveryMaxMinutes Int
+  deliveryAvailability        Boolean                  @default(false)
+  imageKey                    String                   @db.VarChar(64)
+  cuisineDescription          String                   @db.VarChar(160)
+  operatingStatus             OperatingStatus          @default(OPEN)
+  isDemo                      Boolean                  @default(true)
+  displayOrder                Int                      @default(0)
+  localityId                  String?                  @db.VarChar(64)
+  createdAt                   DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                 @updatedAt @db.Timestamptz(3)
+  locality                    Locality?                @relation(fields: [localityId], references: [id], onDelete: SetNull)
+  memberships                 RestaurantMembership[]
+  items                       MenuItem[]
+  sections                    MenuSection[]
+  cuisines                    RestaurantCuisine[]
+  zones                       RestaurantDeliveryZone[]
+  pricingRules                PricingRule[]
+
+  @@index([operatingStatus, displayOrder, id])
+  @@index([localityId, operatingStatus, displayOrder, id])
+}
+
+model Category {
+  id           String     @id @db.VarChar(64)
+  name         String     @unique @db.VarChar(80)
+  slug         String     @unique @db.VarChar(80)
+  description  String?
+  imageKey     String     @db.VarChar(64)
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  items        MenuItem[]
+
+  @@index([isActive, displayOrder])
+}
+
+model Cuisine {
+  id          String              @id @db.VarChar(64)
+  name        String              @unique @db.VarChar(80)
+  slug        String              @unique @db.VarChar(80)
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+  restaurants RestaurantCuisine[]
+}
+
+model RestaurantCuisine {
+  restaurantId String     @db.VarChar(64)
+  cuisineId    String     @db.VarChar(64)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  cuisine      Cuisine    @relation(fields: [cuisineId], references: [id], onDelete: Restrict)
+
+  @@id([restaurantId, cuisineId])
+  @@index([cuisineId, restaurantId])
+}
+
+model MenuSection {
+  id           String     @id @db.VarChar(100)
+  restaurantId String     @db.VarChar(64)
+  name         String     @db.VarChar(100)
+  displayOrder Int        @default(0)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  items        MenuItem[]
+
+  @@unique([id, restaurantId])
+  @@unique([restaurantId, name])
+  @@index([restaurantId, displayOrder])
+}
+
+model MenuItem {
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
+  id                    String             @id @db.VarChar(64)
+  restaurantId          String             @db.VarChar(64)
+  categoryId            String             @db.VarChar(64)
+  sectionId             String             @db.VarChar(100)
+  name                  String             @db.VarChar(160)
+  description           String
+  basePricePaise        Int
+  imageKey              String             @db.VarChar(64)
+  isVegetarian          Boolean
+  availabilityStatus    AvailabilityStatus @default(AVAILABLE)
+  availabilityReason    String?            @db.VarChar(200)
+  availabilityUpdatedAt DateTime           @default(now()) @db.Timestamptz(3)
+  version               Int                @default(1)
+  displayOrder          Int                @default(0)
+  createdAt             DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime           @updatedAt @db.Timestamptz(3)
+  restaurant            Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  category              Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  section               MenuSection        @relation(fields: [sectionId, restaurantId], references: [id, restaurantId], onDelete: Restrict)
+  variants              MenuItemVariant[]
+  addOns                MenuItemAddOn[]
+
+  @@index([restaurantId, availabilityStatus, displayOrder, id])
+  @@index([categoryId, availabilityStatus, basePricePaise])
+  @@index([sectionId, restaurantId])
+}
+
+model MenuItemVariant {
+  cartItems             CartItem[]
+  id                    String     @id @default(uuid()) @db.Uuid
+  menuItemId            String     @db.VarChar(64)
+  name                  String     @db.VarChar(80)
+  priceAdjustmentPaise  Int        @default(0)
+  isAvailable           Boolean    @default(true)
+  availabilityReason    String?
+  availabilityUpdatedAt DateTime   @default(now()) @db.Timestamptz(3)
+  createdAt             DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime   @updatedAt @db.Timestamptz(3)
+  menuItem              MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@unique([menuItemId, name])
+}
+
+model AddOn {
+  cartSelections CartItemAddOn[]
+  id             String          @id @default(uuid()) @db.Uuid
+  name           String          @db.VarChar(80)
+  pricePaise     Int
+  isAvailable    Boolean         @default(true)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+  items          MenuItemAddOn[]
+}
+
+model MenuItemAddOn {
+  menuItemId String   @db.VarChar(64)
+  addOnId    String   @db.Uuid
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Restrict)
+
+  @@id([menuItemId, addOnId])
+  @@index([addOnId])
+}
+
+model DeliveryZone {
+  id             String                   @id @db.VarChar(64)
+  name           String                   @unique @db.VarChar(100)
+  isIllustrative Boolean                  @default(true)
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                 @updatedAt @db.Timestamptz(3)
+  restaurants    RestaurantDeliveryZone[]
+  pricingRules   PricingRule[]
+}
+
+model RestaurantDeliveryZone {
+  restaurantId     String       @db.VarChar(64)
+  zoneId           String       @db.VarChar(64)
+  isEligible       Boolean      @default(false)
+  estimatedMinutes Int?
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+  restaurant       Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  zone             DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@id([restaurantId, zoneId])
+  @@index([zoneId, isEligible])
+}
+
+model PricingRule {
+  id                   String           @id @default(uuid()) @db.Uuid
+  code                 String           @unique @db.VarChar(80)
+  restaurantId         String?          @db.VarChar(64)
+  zoneId               String?          @db.VarChar(64)
+  component            PricingComponent
+  fixedPaise           Int?
+  rateBasisPoints      Int?
+  minimumSubtotalPaise Int              @default(0)
+  maximumChargePaise   Int?
+  priority             Int              @default(0)
+  rounding             RoundingMode     @default(HALF_UP)
+  promotionCode        String?          @db.VarChar(80)
+  isActive             Boolean          @default(false)
+  effectiveFrom        DateTime         @db.Timestamptz(3)
+  effectiveUntil       DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+  restaurant           Restaurant?      @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  zone                 DeliveryZone?    @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, zoneId, component, isActive, priority])
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RoleName {
+  CUSTOMER
+  RESTAURANT_OWNER
+  DELIVERY_PARTNER
+  ADMIN
+}
+
+enum MembershipRole {
+  OWNER
+  STAFF
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  riderAssignments    DeliveryAssignment[]   @relation("AssignedRider")
+  dispatchAssignments DeliveryAssignment[]   @relation("Dispatcher")
+  paymentAttempts     PaymentAttempt[]
+  cart                Cart?
+  addresses           CustomerAddress[]
+  orders              Order[]
+  orderEvents         OrderEvent[]
+  id                  String                 @id @default(uuid()) @db.Uuid
+  email               String                 @unique @db.VarChar(254)
+  passwordHash        String
+  displayName         String                 @db.VarChar(80)
+  status              AccountStatus          @default(ACTIVE)
+  isDemo              Boolean                @default(false)
+  createdAt           DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @db.Timestamptz(3)
+  lastLoginAt         DateTime?              @db.Timestamptz(3)
+  roles               UserRole[]
+  memberships         RestaurantMembership[]
+  sessions            AuthSession[]
+}
+
+model Role {
+  name  RoleName   @id
+  users UserRole[]
+}
+
+model UserRole {
+  userId    String   @db.Uuid
+  roleName  RoleName
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role      Role     @relation(fields: [roleName], references: [name], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([userId, roleName])
+  @@index([roleName])
+}
+
+model RestaurantMembership {
+  userId         String           @db.Uuid
+  restaurantId   String           @db.VarChar(64)
+  membershipRole MembershipRole   @default(OWNER)
+  status         MembershipStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+
+  @@id([userId, restaurantId])
+  @@index([restaurantId, status])
+}
+
+model AuthSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique @db.Char(64)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  lastUsedAt DateTime  @default(now()) @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PENDING_RESTAURANT
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PAYMENT_PENDING
+  PAYMENT_AUTHORIZED
+  PAYMENT_FAILED
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY_TEST
+  DEMO_NO_PAYMENT
+}
+
+model Cart {
+  id           String      @id @default(uuid()) @db.Uuid
+  customerId   String      @unique @db.Uuid
+  restaurantId String?     @db.VarChar(64)
+  version      Int         @default(1)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+  customer     User        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  items        CartItem[]
+  quotes       CartQuote[]
+  orders       Order[]
+}
+
+model CartItem {
+  id           String           @id @default(uuid()) @db.Uuid
+  cartId       String           @db.Uuid
+  menuItemId   String           @db.VarChar(64)
+  variantId    String?          @db.Uuid
+  selectionKey String           @db.Char(64)
+  quantity     Int
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
+  cart         Cart             @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  variant      MenuItemVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  addOns       CartItemAddOn[]
+
+  @@unique([cartId, selectionKey])
+}
+
+model CartItemAddOn {
+  cartItemId String   @db.Uuid
+  addOnId    String   @db.Uuid
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Restrict)
+
+  @@id([cartItemId, addOnId])
+}
+
+model CustomerAddress {
+  id            String   @id @default(uuid()) @db.Uuid
+  customerId    String   @db.Uuid
+  label         String   @db.VarChar(40)
+  recipientName String   @db.VarChar(80)
+  contactNumber String   @db.VarChar(20)
+  addressLine1  String   @db.VarChar(200)
+  addressLine2  String   @default("") @db.VarChar(200)
+  landmark      String   @default("") @db.VarChar(120)
+  localityId    String   @db.VarChar(64)
+  postalCode    String   @db.VarChar(6)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  customer      User     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  locality      Locality @relation(fields: [localityId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+}
+
+model CartQuote {
+  id          String   @id @default(uuid()) @db.Uuid
+  cartId      String   @db.Uuid
+  cartVersion Int
+  addressId   String   @db.Uuid
+  fingerprint String   @db.Char(64)
+  promotion   String?  @db.VarChar(80)
+  expiresAt   DateTime @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@index([cartId, expiresAt])
+}
+
+model Order {
+  version                 Int                 @default(1)
+  rejectionReason         String?             @db.VarChar(300)
+  refundReviewRequired    Boolean             @default(false)
+  assignment              DeliveryAssignment?
+  paymentAttempts         PaymentAttempt[]
+  id                      String              @id @default(uuid()) @db.Uuid
+  orderNumber             String              @unique @db.VarChar(32)
+  customerId              String              @db.Uuid
+  restaurantId            String              @db.VarChar(64)
+  restaurantName          String              @db.VarChar(160)
+  cartId                  String              @db.Uuid
+  cartVersion             Int
+  idempotencyKey          String              @db.Uuid
+  requestHash             String              @db.Char(64)
+  deliveryAddressSnapshot Json
+  status                  OrderStatus         @default(PENDING_RESTAURANT)
+  paymentStatus           PaymentStatus       @default(UNPAID)
+  paymentMethod           PaymentMethod       @default(DEMO_NO_PAYMENT)
+  currency                String              @default("INR") @db.Char(3)
+  itemSubtotalPaise       Int
+  customizationTotalPaise Int
+  packagingPaise          Int
+  deliveryPaise           Int
+  platformPaise           Int
+  discountPaise           Int
+  taxPaise                Int
+  finalPayablePaise       Int
+  pricingPolicyVersion    String              @db.VarChar(80)
+  pricingSnapshot         Json
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
+  canceledAt              DateTime?           @db.Timestamptz(3)
+  customer                User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  restaurant              Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  cart                    Cart                @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  items                   OrderItem[]
+  events                  OrderEvent[]
+
+  @@unique([customerId, idempotencyKey])
+  @@unique([cartId, cartVersion])
+  @@index([customerId, createdAt, id])
+  @@index([restaurantId, createdAt, id])
+}
+
+enum PaymentAttemptStatus {
+  CREATING
+  CREATE_UNKNOWN
+  READY
+  AUTHORIZED
+  CAPTURED
+  FAILED
+}
+
+model PaymentAttempt {
+  id                 String               @id @default(uuid()) @db.Uuid
+  orderId            String               @unique @db.Uuid
+  customerId         String               @db.Uuid
+  provider           String               @default("RAZORPAY") @db.VarChar(20)
+  environment        String               @default("TEST") @db.VarChar(10)
+  keyId              String               @db.VarChar(80)
+  providerOrderId    String?              @unique @db.VarChar(80)
+  providerPaymentId  String?              @unique @db.VarChar(80)
+  receipt            String               @unique @db.VarChar(40)
+  amountPaise        Int
+  currency           String               @default("INR") @db.Char(3)
+  status             PaymentAttemptStatus @default(CREATING)
+  sequence           Int                  @default(1)
+  failureCode        String?              @db.VarChar(80)
+  lastVerificationAt DateTime?            @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime             @updatedAt @db.Timestamptz(3)
+  order              Order                @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer           User                 @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([status, updatedAt])
+}
+
+model PaymentWebhookEvent {
+  id                String    @id @default(uuid()) @db.Uuid
+  providerEventId   String    @unique @db.VarChar(100)
+  eventType         String    @db.VarChar(80)
+  payloadHash       String    @db.Char(64)
+  providerOrderId   String?   @db.VarChar(80)
+  providerPaymentId String?   @db.VarChar(80)
+  status            String    @default("RECEIVED") @db.VarChar(20)
+  receivedAt        DateTime  @default(now()) @db.Timestamptz(3)
+  processedAt       DateTime? @db.Timestamptz(3)
+
+  @@index([status, receivedAt])
+}
+
+model OrderItem {
+  id              String           @id @default(uuid()) @db.Uuid
+  orderId         String           @db.Uuid
+  menuItemId      String           @db.VarChar(64)
+  name            String           @db.VarChar(160)
+  imageKey        String           @db.VarChar(64)
+  baseUnitPaise   Int
+  variantSnapshot Json?
+  quantity        Int
+  lineTotalPaise  Int
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  menuItem        MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  addOns          OrderItemAddOn[]
+
+  @@index([orderId])
+}
+
+model OrderItemAddOn {
+  id              String    @id @default(uuid()) @db.Uuid
+  orderItemId     String    @db.Uuid
+  originalAddOnId String    @db.Uuid
+  name            String    @db.VarChar(80)
+  unitPricePaise  Int
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([orderItemId, originalAddOnId])
+}
+
+model OrderEvent {
+  sequence       Int?
+  outbox         OutboxEvent?
+  id             String       @id @default(uuid()) @db.Uuid
+  orderId        String       @db.Uuid
+  actorUserId    String?      @db.Uuid
+  eventType      String       @db.VarChar(60)
+  previousStatus OrderStatus?
+  newStatus      OrderStatus
+  metadata       Json
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  publishedAt    DateTime?    @db.Timestamptz(3)
+  order          Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actor          User?        @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, sequence])
+  @@unique([orderId, eventType])
+  @@index([publishedAt, createdAt, id])
+}
+
+model DeliveryAssignment {
+  id           String      @id @default(uuid()) @db.Uuid
+  orderId      String      @unique @db.Uuid
+  riderId      String      @db.Uuid
+  assignedById String      @db.Uuid
+  status       OrderStatus @default(READY_FOR_PICKUP)
+  assignedAt   DateTime    @default(now()) @db.Timestamptz(3)
+  pickedUpAt   DateTime?   @db.Timestamptz(3)
+  deliveredAt  DateTime?   @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  rider        User        @relation("AssignedRider", fields: [riderId], references: [id], onDelete: Restrict)
+  assignedBy   User        @relation("Dispatcher", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@index([riderId, status])
+}
+
+model OutboxEvent {
+  id            String     @id @default(uuid()) @db.Uuid
+  eventId       String     @unique @db.Uuid
+  event         OrderEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  dispatchedAt  DateTime?  @db.Timestamptz(3)
+  nextAttemptAt DateTime   @default(now()) @db.Timestamptz(3)
+  attempts      Int        @default(0)
+
+  @@index([dispatchedAt, nextAttemptAt, createdAt])
+}

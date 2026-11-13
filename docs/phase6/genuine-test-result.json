@@ -1,0 +1,15 @@
+{
+  "orderNumber": "FD-EC4495042A629CAB55E7",
+  "orderId": "69b6147f-28d0-4e4f-a318-ff67b6027568",
+  "amountPaise": 36400,
+  "paymentMethod": "RAZORPAY_TEST",
+  "paymentStatus": "PAID",
+  "orderStatus": "PENDING_RESTAURANT",
+  "attemptStatus": "CAPTURED",
+  "providerStatus": "captured",
+  "providerCaptured": true,
+  "providerAmountMatches": true,
+  "providerOrderMatches": true,
+  "captureEvents": 1,
+  "verifiedAt": "2026-11-13T07:56:58.761Z"
+}

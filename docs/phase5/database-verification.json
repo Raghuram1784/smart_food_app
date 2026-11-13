@@ -1,0 +1,37 @@
+{
+  "orderId": "a923bb86-4fe1-47dc-bf83-edc1df97462f",
+  "orderNumber": "FD-AA98F142DE6365012887",
+  "restaurantId": "deccan-handi-gachi",
+  "status": "PENDING_RESTAURANT",
+  "paymentStatus": "UNPAID",
+  "paymentMethod": "DEMO_NO_PAYMENT",
+  "finalPayablePaise": 119200,
+  "items": [
+    {
+      "name": "Chicken Dum Biryani",
+      "quantity": 2,
+      "lineTotalPaise": 72800,
+      "addOnCount": 1
+    },
+    {
+      "name": "Mutton Zafrani Dum Biryani",
+      "quantity": 1,
+      "lineTotalPaise": 42900,
+      "addOnCount": 0
+    }
+  ],
+  "events": [
+    {
+      "eventType": "ORDER_CREATED",
+      "newStatus": "PENDING_RESTAURANT",
+      "publishedAt": null
+    }
+  ],
+  "counts": {
+    "restaurants": 28,
+    "items": 224,
+    "localities": 10,
+    "variants": 89,
+    "addOns": 10
+  }
+}
