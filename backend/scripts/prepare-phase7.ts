@@ -6,11 +6,10 @@ import request from 'supertest';
 
 async function main(){
   assert.equal(process.env.NODE_ENV,'development');
-  const {createApp}=require('../dist/src/main');
   const {createDatabase}=require('../dist/src/database/client');
-  const app=await createApp(),db=createDatabase(process.env.DATABASE_URL);
+  const db=createDatabase(process.env.DATABASE_URL);
   try{
-    await app.init();const api=request(app.getHttpServer());
+    const api=request('http://127.0.0.1:5000');
     const login=await api.post('/api/v1/auth/login').send({email:'customer@demo.test',password:process.env.DEMO_CUSTOMER_PASSWORD}).expect(200);
     const token=login.body.data.session.token;
     const call=(method:string,path:string)=>api[method as 'get']('/api/v1/'+path).set('Authorization','Bearer '+token);
@@ -30,7 +29,7 @@ async function main(){
     }
     console.log(JSON.stringify({check:'phase7_demo_order_ready',orderId}));
     await call('post','auth/logout').send({});
-  }finally{await app.close();await db.$disconnect();}
+  }finally{await db.$disconnect();}
 }
 main().catch(()=>{console.error('Phase 7 preparation stopped; preserve the cart and inspect the saved order reference before retrying.');process.exitCode=1;});
 

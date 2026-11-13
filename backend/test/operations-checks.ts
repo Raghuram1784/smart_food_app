@@ -89,5 +89,23 @@ export async function operationsChecks(t:any,app:any,db:any,call:any,api:any,pai
       await change(await fixture(),'accept').expect(401);
       await db.authSession.updateMany({where:{userId:users[2].id},data:{revokedAt:null}});
     });
+    await t.test('socket server restart reconnects and pending outbox survives',async()=>{
+      const {createApp}=require('../dist/src/main');
+      let second=await createApp();await second.listen(0,'127.0.0.1');
+      let dispatch=second.get(OutboxDispatcher);clearInterval(dispatch.timer);
+      const port=second.getHttpServer().address().port;
+      const socket=io(`http://127.0.0.1:${port}`,{auth:{token:tokens[0]},transports:['websocket'],forceNew:true,reconnection:true,reconnectionDelay:50,reconnectionAttempts:10,timeout:1000});sockets.push(socket);
+      await new Promise<void>((resolve,reject)=>{socket.once('connect',()=>resolve());socket.once('connect_error',reject);});
+      const pending=await fixture();await change(pending,'accept').expect(200);
+      await second.close();
+      second=await createApp();
+      try{
+        await second.listen(port,'127.0.0.1');dispatch=second.get(OutboxDispatcher);clearInterval(dispatch.timer);
+        await new Promise<void>((resolve,reject)=>{if(socket.connected)return resolve();socket.once('connect',()=>resolve());setTimeout(()=>reject(Error('Restart reconnect failed')),5000).unref();});
+        const delivered=new Promise<void>((resolve,reject)=>{socket.on('order.updated',e=>{if(e.orderId===pending.id)resolve();});setTimeout(()=>reject(Error('Outbox recovery missing')),5000).unref();});
+        await dispatch.dispatch();await delivered;
+        assert.equal((await call('get',`orders/${pending.id}`).expect(200)).body.data.status,'ACCEPTED');
+      }finally{socket.disconnect();await second.close();}
+    });
   }finally{for(const s of sockets)s.disconnect();delete process.env.DEMO_FULFILLMENT_ENABLED;process.env.NODE_ENV='test';}
 }
