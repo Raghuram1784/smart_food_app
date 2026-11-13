@@ -1105,44 +1105,98 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                   const Divider(height: 20),
                   for (final line in lines) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
+                    Builder(
+                      builder: (context) {
+                        final rawName = (line['name'] as String?) ?? '';
+                        final variant = line['variant'] as Map?;
+                        final variantName = variant?['name'] as String?;
+                        final cleanName =
+                            (variantName != null && variantName.isNotEmpty)
+                            ? rawName
+                                  .replaceAll(
+                                    RegExp(
+                                      r'\s*\(\d+\s*pc\)',
+                                      caseSensitive: false,
+                                    ),
+                                    '',
+                                  )
+                                  .trim()
+                            : rawName;
+                        final addOns = (line['addOns'] as List?) ?? const [];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${line['quantity']} × ${line['name']}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${line['quantity']} × $cleanName',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    if (variantName != null &&
+                                        variantName.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                scheme.surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            variantName,
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: scheme.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    if (addOns.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          [
+                                                for (final a in addOns)
+                                                  ((a as Map)['name']
+                                                          as String?) ??
+                                                      '',
+                                              ]
+                                              .where((s) => s.isNotEmpty)
+                                              .join(' · '),
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              if (line['variant'] != null ||
-                                  (line['addOns'] as List).isNotEmpty)
+                              if (line['lineTotalPaise'] != null) ...[
+                                const SizedBox(width: 10),
                                 Text(
-                                  [
-                                    if (line['variant'] != null)
-                                      line['variant']['name'],
-                                    for (final a in line['addOns']) a['name'],
-                                  ].join(' · '),
-                                  style: theme.textTheme.bodySmall,
+                                  '₹${formatPaise(line['lineTotalPaise'] as int)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
+                              ],
                             ],
                           ),
-                        ),
-                        if (line['lineTotalPaise'] != null) ...[
-                          const SizedBox(width: 10),
-                          Text(
-                            '₹${formatPaise(line['lineTotalPaise'] as int)}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ],
               ),

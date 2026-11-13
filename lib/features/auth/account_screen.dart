@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/design.dart';
+import '../../core/providers.dart';
+import '../navigation/workspace_provider.dart';
 import 'auth_provider.dart';
 import 'auth_repository.dart';
 
@@ -21,7 +24,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     });
     try {
       await ref.read(authProvider.notifier).logout(all: all);
-      if (mounted) context.go('/profile');
+      ref
+          .read(activeWorkspaceProvider.notifier)
+          .setWorkspace(RoleWorkspace.customer);
+      if (mounted) context.go('/');
     } catch (e) {
       if (mounted) setState(() => error = authError(e));
     } finally {
@@ -87,17 +93,23 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           ),
         ),
         data: (session) => session == null
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Sign in to access your account.'),
-                    FilledButton(
-                      onPressed: () => context.go('/login'),
-                      child: const Text('Sign in'),
-                    ),
-                  ],
-                ),
+            ? ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your account',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Sign in to access your account.'),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Sign in'),
+                  ),
+                  const _AppearanceSection(),
+                ],
               )
             : ListView(
                 padding: const EdgeInsets.all(24),
@@ -118,6 +130,98 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         ),
                     ],
                   ),
+                  if (session.user.roles.length > 1) ...[
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Switch workspace',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                if (session.user.roles.contains('CUSTOMER'))
+                                  ChoiceChip(
+                                    label: const Text('Customer Store'),
+                                    selected:
+                                        ref.watch(activeWorkspaceProvider) ==
+                                        RoleWorkspace.customer,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(
+                                            activeWorkspaceProvider.notifier,
+                                          )
+                                          .setWorkspace(RoleWorkspace.customer);
+                                      context.go('/');
+                                    },
+                                  ),
+                                if (session.user.roles.contains(
+                                  'RESTAURANT_OWNER',
+                                ))
+                                  ChoiceChip(
+                                    label: const Text('Restaurant Kitchen'),
+                                    selected:
+                                        ref.watch(activeWorkspaceProvider) ==
+                                        RoleWorkspace.restaurantOwner,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(
+                                            activeWorkspaceProvider.notifier,
+                                          )
+                                          .setWorkspace(
+                                            RoleWorkspace.restaurantOwner,
+                                          );
+                                      context.go('/owner');
+                                    },
+                                  ),
+                                if (session.user.roles.contains(
+                                  'DELIVERY_PARTNER',
+                                ))
+                                  ChoiceChip(
+                                    label: const Text('Delivery Partner'),
+                                    selected:
+                                        ref.watch(activeWorkspaceProvider) ==
+                                        RoleWorkspace.deliveryPartner,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(
+                                            activeWorkspaceProvider.notifier,
+                                          )
+                                          .setWorkspace(
+                                            RoleWorkspace.deliveryPartner,
+                                          );
+                                      context.go('/deliveries');
+                                    },
+                                  ),
+                                if (session.user.roles.contains('ADMIN'))
+                                  ChoiceChip(
+                                    label: const Text('Admin Dispatch'),
+                                    selected:
+                                        ref.watch(activeWorkspaceProvider) ==
+                                        RoleWorkspace.admin,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(
+                                            activeWorkspaceProvider.notifier,
+                                          )
+                                          .setWorkspace(RoleWorkspace.admin);
+                                      context.go('/dispatch');
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
@@ -204,6 +308,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     onPressed: busy ? null : () => logout(true),
                     child: const Text('Sign out on all devices'),
                   ),
+                  const _AppearanceSection(),
                 ],
               ),
       ),
@@ -243,4 +348,61 @@ class AccountContext extends ConsumerWidget {
           ),
         ),
   );
+}
+
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(appearanceProvider);
+    final theme = Theme.of(context);
+    final culinary = theme.extension<CulinaryColors>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 36),
+        Text('A matter of taste', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 6),
+        Text(
+          'Choose how your everyday looks.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        for (final value in ThemeMode.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Material(
+              color: mode == value
+                  ? (culinary?.seaGlass ?? theme.colorScheme.primaryContainer)
+                  : theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(switch (value) {
+                  ThemeMode.system => 'Match system',
+                  ThemeMode.light => 'Light mode',
+                  ThemeMode.dark => 'Dark mode',
+                }),
+                subtitle: Text(switch (value) {
+                  ThemeMode.system => 'Follow your device setting',
+                  ThemeMode.light => 'Warm paper, ink and terracotta accents',
+                  ThemeMode.dark => 'Culinary noir with brass highlights',
+                }),
+                trailing: mode == value
+                    ? const Icon(Icons.check_circle_rounded)
+                    : null,
+                onTap: () =>
+                    ref.read(appearanceProvider.notifier).select(value),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }

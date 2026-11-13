@@ -62,6 +62,20 @@ String paymentStatusLabel(String value, {bool concise = false}) {
   return value.toLowerCase().replaceAll('_', ' ');
 }
 
+String _roleDescription(String role) {
+  switch (role) {
+    case 'RESTAURANT_OWNER':
+      return 'restaurant owners';
+    case 'DELIVERY_PARTNER':
+      return 'delivery partners';
+    case 'ADMIN':
+      return 'administrators';
+    case 'CUSTOMER':
+    default:
+      return 'customers';
+  }
+}
+
 class CommerceGate extends ConsumerWidget {
   final Widget child;
   final String role;
@@ -87,15 +101,16 @@ class CommerceGate extends ConsumerWidget {
                       Text(
                         s == null
                             ? 'Sign in to continue.'
-                            : 'This view is for ${role == 'CUSTOMER' ? 'customers' : 'restaurant owners'}.',
+                            : 'This view requires authorization for ${_roleDescription(role)}.',
                       ),
+                      const SizedBox(height: 12),
                       TextButton(
                         onPressed: () => context.push('/login?return=back'),
-                        child: const Text('Sign in'),
+                        child: const Text('Sign in with a different account'),
                       ),
                       TextButton(
                         onPressed: () => context.go('/'),
-                        child: const Text('Continue exploring'),
+                        child: const Text('Return to discovery'),
                       ),
                     ],
                   ),
@@ -381,12 +396,19 @@ class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
       if (!mounted) return;
       ref.invalidate(cartProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.removeCurrentSnackBar();
+        messenger.showSnackBar(
           SnackBar(
             content: const Text('Added to your cart'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
               label: 'View cart',
-              onPressed: () => context.push('/cart'),
+              onPressed: () {
+                messenger.removeCurrentSnackBar();
+                context.push('/cart');
+              },
             ),
           ),
         );

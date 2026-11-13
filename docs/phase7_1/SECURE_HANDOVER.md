@@ -104,3 +104,4 @@ When rider invokes `POST /operations/delivery/orders/:id/complete-handover`:
 - Enforces 6-digit length before enabling submission.
 - Disables submission and shows loading indicator to prevent duplicate taps.
 - Displays inline error feedback on invalid attempts or locks.
+

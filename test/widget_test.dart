@@ -1,12 +1,15 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:smart_food_demo/features/catalog/catalog_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_food_demo/app.dart';
 import 'package:smart_food_demo/core/providers.dart';
+import 'package:smart_food_demo/features/auth/auth_repository.dart';
 import 'package:smart_food_demo/features/catalog/catalog.dart';
+import 'package:smart_food_demo/features/catalog/catalog_repository.dart';
 
 void main() {
   test(
@@ -80,6 +83,7 @@ void main() {
               catalogRepositoryProvider.overrideWithValue(
                 OfflineCatalogRepository(),
               ),
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
             ],
             child: const FoodApp(),
           ),
@@ -109,7 +113,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Back'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Explore'));
+        await tester.tap(find.text('Search'));
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextField), 'nonsense');
         await tester.pump(const Duration(milliseconds: 350));
@@ -125,7 +129,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Tomato & basil penne'), findsOneWidget);
         expect(find.text('Signature cheeseburger'), findsNothing);
-        await tester.tap(find.text('You'));
+        await tester.tap(find.text('Account'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Dark mode'));
         await tester.pumpAndSettle();
@@ -246,7 +250,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Explore'));
+      await tester.tap(find.text('Search'));
       await tester.pumpAndSettle();
       expect(recordedAreas, contains('madhapur'));
       await tester.tap(find.text('In Madhapur'));
@@ -266,4 +270,24 @@ class _RecordingCatalogRepository extends OfflineCatalogRepository {
     recordedAreas.add(query.area);
     return super.search(query, token);
   }
+}
+
+class _FakeAuthRepository implements AuthRepository {
+  final events = StreamController<void>.broadcast(sync: true);
+  @override
+  Stream<void> get invalidations => events.stream;
+  @override
+  Future<AuthSession?> restore() async => null;
+  @override
+  Future<AuthSession> login(String email, String password) =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout({bool all = false}) async {}
+  @override
+  Future<void> expire() async {}
+  @override
+  Future<AuthSession> updateName(String name) => throw UnimplementedError();
+  @override
+  Future<Map<String, dynamic>> context(String path) =>
+      throw UnimplementedError();
 }

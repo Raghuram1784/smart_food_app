@@ -30,8 +30,31 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final path =
         '${owner ? 'restaurants/${widget.restaurantId}/orders' : 'orders'}?page=$page&limit=10';
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    });
+
     return Scaffold(
       appBar: AppBar(
+        leading: !owner
+            ? (Navigator.of(context).canPop()
+                  ? IconButton(
+                      tooltip: 'Back',
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        } else {
+                          context.go('/');
+                        }
+                      },
+                    )
+                  : IconButton(
+                      tooltip: 'Discover',
+                      icon: const Icon(Icons.home_outlined),
+                      onPressed: () => context.go('/'),
+                    ))
+            : null,
         title: Text(owner ? 'Incoming orders' : 'Your orders'),
         actions: [
           IconButton(
@@ -243,7 +266,22 @@ class _OrderSummaryCard extends StatelessWidget {
       (sum, line) => sum + (line['quantity'] as int),
     );
     final summaryText = lines
-        .map((line) => '${line['quantity']} × ${line['name']}')
+        .map((line) {
+          final v =
+              (line['variantSnapshot']?['name'] ?? line['variant']?['name'])
+                  as String?;
+          final raw = line['name'] as String;
+          if (v != null && v.isNotEmpty) {
+            final clean = raw
+                .replaceAll(
+                  RegExp(r'\s*\(\d+\s*pc\)', caseSensitive: false),
+                  '',
+                )
+                .trim();
+            return '${line['quantity']} × $clean ($v)';
+          }
+          return '${line['quantity']} × $raw';
+        })
         .join(', ');
     final orderNumber = order['orderNumber'] as String;
     final refShort = shortOrderRef(orderNumber);
@@ -350,12 +388,22 @@ class OrderDetailScreen extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final culinary = theme.extension<CulinaryColors>();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(placed ? 'Order confirmation' : 'Order details'),
         leading: IconButton(
-          tooltip: 'Order history',
-          onPressed: () => placed ? context.go('/orders') : context.pop(),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(placed ? '/orders' : '/');
+            }
+          },
           icon: const Icon(Icons.arrow_back),
         ),
       ),
@@ -796,15 +844,23 @@ class _OrderLineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final name = line['name'] as String;
-    final variantName = line['variantSnapshot']?['name'] as String?;
+    final scheme = theme.colorScheme;
+    final rawName = line['name'] as String;
+    final variantName =
+        (line['variantSnapshot']?['name'] ?? line['variant']?['name'])
+            as String?;
+    final cleanName = (variantName != null && variantName.isNotEmpty)
+        ? rawName
+              .replaceAll(RegExp(r'\s*\(\d+\s*pc\)', caseSensitive: false), '')
+              .trim()
+        : rawName;
     final addOns = [
       for (final a in (line['addOns'] as List? ?? const []))
         a['name'] as String,
     ];
     final photoKey = Dish.photoKeyFor(
       (line['imageKey'] as String?) ?? 'dosa',
-      name,
+      rawName,
     );
 
     return Row(
@@ -822,17 +878,39 @@ class _OrderLineRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${line['quantity']} × $name',
+                '${line['quantity']} × $cleanName',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (variantName != null)
-                Text('Option: $variantName', style: theme.textTheme.bodySmall),
+              if (variantName != null && variantName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Option: $variantName',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
               if (addOns.isNotEmpty)
-                Text(
-                  'Add-ons: ${addOns.join(' · ')}',
-                  style: theme.textTheme.bodySmall,
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    'Add-ons: ${addOns.join(' · ')}',
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ),
             ],
           ),

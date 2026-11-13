@@ -17,21 +17,57 @@ const actionLabels = {
   'deliver': 'Confirm delivered',
 };
 
+String cleanItemPortion(String name, String? variant) {
+  if (variant == null || variant.isEmpty) return name;
+  return name
+      .replaceAll(RegExp(r'\s*\(\d+\s*pc\)', caseSensitive: false), '')
+      .trim();
+}
+
 class OperationsScreen extends ConsumerStatefulWidget {
   final String scope;
   final String? orderId;
-  const OperationsScreen({super.key, required this.scope, this.orderId});
+  final String? tab;
+  const OperationsScreen({
+    super.key,
+    required this.scope,
+    this.orderId,
+    this.tab,
+  });
   @override
   ConsumerState<OperationsScreen> createState() => _OperationsScreenState();
 }
 
 class _OperationsScreenState extends ConsumerState<OperationsScreen> {
   int page = 1;
+  late String activeTab;
+
+  @override
+  void initState() {
+    super.initState();
+    activeTab = widget.tab ?? 'all';
+  }
+
+  @override
+  void didUpdateWidget(covariant OperationsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tab != oldWidget.tab && widget.tab != null) {
+      setState(() => activeTab = widget.tab!);
+    }
+  }
+
   String get path =>
       'operations/${widget.scope}/orders${widget.orderId == null ? '?page=$page' : '/${widget.orderId}'}';
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      leading: Navigator.of(context).canPop()
+          ? IconButton(
+              tooltip: 'Back',
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          : null,
       title: Text(
         widget.scope == 'dispatch'
             ? 'Delivery dispatch'
@@ -232,7 +268,7 @@ class _OperationCardState extends ConsumerState<OperationCard> {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   [
-                    "${item['quantity']} × ${item['name']}",
+                    "${item['quantity']} × ${cleanItemPortion(item['name'] as String, item['variantSnapshot']?['name'] as String?)}",
                     if (item['variantSnapshot'] != null)
                       item['variantSnapshot']['name'],
                     for (final a in item['addOns']) a['name'],

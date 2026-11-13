@@ -25,9 +25,13 @@ final appearanceProvider = NotifierProvider<Appearance, ThemeMode>(
 class Appearance extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    final value = ref.read(preferencesProvider).getString('appearance');
-    return ThemeMode.values.where((m) => m.name == value).firstOrNull ??
-        ThemeMode.system;
+    try {
+      final value = ref.read(preferencesProvider).getString('appearance');
+      return ThemeMode.values.where((m) => m.name == value).firstOrNull ??
+          ThemeMode.system;
+    } catch (_) {
+      return ThemeMode.system;
+    }
   }
 
   Future<bool> select(ThemeMode mode) async {

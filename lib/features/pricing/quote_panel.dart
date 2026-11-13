@@ -256,6 +256,7 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
   Widget build(BuildContext context) {
     final d = widget.dish;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final area = ref.watch(locationProvider);
     final request = (
       item: d.id,
@@ -290,9 +291,33 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
             ),
           ],
         ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Base price: ', style: theme.textTheme.bodySmall),
+              Text(
+                '₹${d.displayPrice}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: scheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
         if (d.variantOptions.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text('Available sizes', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 10),
+          Text(
+            'Available sizes & portions',
+            style: theme.textTheme.labelMedium,
+          ),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,

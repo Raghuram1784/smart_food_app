@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../navigation/workspace_provider.dart';
 import 'auth_provider.dart';
 import 'auth_repository.dart';
 
@@ -35,11 +36,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authProvider.notifier).login(email.text, password.text);
       password.clear();
       if (mounted) {
-        if (GoRouterState.of(context).uri.queryParameters['return'] == 'back' &&
-            context.canPop()) {
+        final session = ref.read(authProvider).asData?.value;
+        final user = session?.user;
+        ref.read(activeWorkspaceProvider.notifier).resetToDefault();
+
+        final returnParam = GoRouterState.of(context)
+            .uri
+            .queryParameters['return'];
+        if (returnParam == 'back' && context.canPop()) {
           context.pop();
         } else {
-          context.go('/account');
+          final workspace = ref.read(activeWorkspaceProvider);
+          final destination = homeRouteForWorkspace(workspace, user);
+          context.go(destination);
         }
       }
     } catch (e) {
@@ -159,7 +168,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           for (final item in const {
                             'Customer': 'customer@demo.test',
-                            'Restaurant': 'restaurant@demo.test',
+                            'Restaurant (Deccan)': 'restaurant@demo.test',
+                            'Chaat Mandi Owner': 'chaat.owner@demo.test',
                             'Delivery partner': 'rider@demo.test',
                             'Administrator': 'admin@demo.test',
                           }.entries)

@@ -67,3 +67,4 @@ flutter run -d <DEVICE_ID_2> --dart-define=API_BASE_URL=http://<HOST_IP>:5000/ap
    - Rider dialog closes with success snackbar; order status updates to `DELIVERED`.
    - Customer screen instantly receives WebSocket `order.updated` event.
    - Customer handover card displays **Handover verified** with green checkmark; plaintext PIN is automatically expunged from memory and view.
+
