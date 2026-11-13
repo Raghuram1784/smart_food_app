@@ -19,6 +19,7 @@
     "test:auth": "tsx --test test/auth.e2e.test.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.3.0",
     "@nestjs/common": "^11.2.9",
     "@nestjs/core": "^11.2.9",
     "@nestjs/platform-express": "^11.2.9",
