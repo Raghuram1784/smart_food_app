@@ -1,0 +1,138 @@
+{
+  "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+  "orderNumber": "FD-FD78A58923924AB71529",
+  "status": "DELIVERED",
+  "paymentStatus": "UNPAID",
+  "events": [
+    {
+      "id": "9456dc4c-8e9c-46bc-8cc2-725e10283d13",
+      "eventType": "ORDER_CREATED",
+      "newStatus": "PENDING_RESTAURANT",
+      "previousStatus": null,
+      "sequence": 1,
+      "createdAt": "2026-11-13T08:41:17.091Z"
+    },
+    {
+      "id": "75b456bf-0a5c-4bb6-84c0-2d36891a53fd",
+      "eventType": "ORDER_ACCEPTED",
+      "newStatus": "ACCEPTED",
+      "previousStatus": "PENDING_RESTAURANT",
+      "sequence": 2,
+      "createdAt": "2026-11-13T08:47:48.144Z"
+    },
+    {
+      "id": "020937c6-3d80-43fc-a6bd-09858d32c056",
+      "eventType": "PREPARATION_STARTED",
+      "newStatus": "PREPARING",
+      "previousStatus": "ACCEPTED",
+      "sequence": 3,
+      "createdAt": "2026-11-13T08:47:49.708Z"
+    },
+    {
+      "id": "9112a4a3-aa3d-40ba-adcc-0297c0ddbea4",
+      "eventType": "ORDER_READY",
+      "newStatus": "READY_FOR_PICKUP",
+      "previousStatus": "PREPARING",
+      "sequence": 4,
+      "createdAt": "2026-11-13T08:47:52.056Z"
+    },
+    {
+      "id": "1a374d93-07d9-4ae5-b42a-a50a280278c9",
+      "eventType": "RIDER_ASSIGNED",
+      "newStatus": "READY_FOR_PICKUP",
+      "previousStatus": "READY_FOR_PICKUP",
+      "sequence": 5,
+      "createdAt": "2026-11-13T08:47:54.114Z"
+    },
+    {
+      "id": "39ad23ff-4ee2-4846-ba9a-92c3840c1c29",
+      "eventType": "ORDER_PICKED_UP",
+      "newStatus": "PICKED_UP",
+      "previousStatus": "READY_FOR_PICKUP",
+      "sequence": 6,
+      "createdAt": "2026-11-13T08:47:56.887Z"
+    },
+    {
+      "id": "5ec91ced-66fe-49dc-8fec-05c95dfaa052",
+      "eventType": "OUT_FOR_DELIVERY",
+      "newStatus": "OUT_FOR_DELIVERY",
+      "previousStatus": "PICKED_UP",
+      "sequence": 7,
+      "createdAt": "2026-11-13T08:47:59.779Z"
+    },
+    {
+      "id": "d85ad120-f093-462c-9d98-8c57340e60a0",
+      "eventType": "ORDER_DELIVERED",
+      "newStatus": "DELIVERED",
+      "previousStatus": "OUT_FOR_DELIVERY",
+      "sequence": 8,
+      "createdAt": "2026-11-13T08:48:03.892Z"
+    }
+  ],
+  "liveEvents": [
+    {
+      "eventId": "75b456bf-0a5c-4bb6-84c0-2d36891a53fd",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "ACCEPTED",
+      "previousStatus": "PENDING_RESTAURANT",
+      "version": 2,
+      "updatedAt": "2026-11-13T08:47:48.144Z",
+      "eventType": "ORDER_ACCEPTED"
+    },
+    {
+      "eventId": "020937c6-3d80-43fc-a6bd-09858d32c056",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "PREPARING",
+      "previousStatus": "ACCEPTED",
+      "version": 3,
+      "updatedAt": "2026-11-13T08:47:49.708Z",
+      "eventType": "PREPARATION_STARTED"
+    },
+    {
+      "eventId": "9112a4a3-aa3d-40ba-adcc-0297c0ddbea4",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "READY_FOR_PICKUP",
+      "previousStatus": "PREPARING",
+      "version": 4,
+      "updatedAt": "2026-11-13T08:47:52.056Z",
+      "eventType": "ORDER_READY"
+    },
+    {
+      "eventId": "1a374d93-07d9-4ae5-b42a-a50a280278c9",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "READY_FOR_PICKUP",
+      "previousStatus": "READY_FOR_PICKUP",
+      "version": 5,
+      "updatedAt": "2026-11-13T08:47:54.114Z",
+      "eventType": "RIDER_ASSIGNED"
+    },
+    {
+      "eventId": "39ad23ff-4ee2-4846-ba9a-92c3840c1c29",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "PICKED_UP",
+      "previousStatus": "READY_FOR_PICKUP",
+      "version": 6,
+      "updatedAt": "2026-11-13T08:47:56.887Z",
+      "eventType": "ORDER_PICKED_UP"
+    },
+    {
+      "eventId": "5ec91ced-66fe-49dc-8fec-05c95dfaa052",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "OUT_FOR_DELIVERY",
+      "previousStatus": "PICKED_UP",
+      "version": 7,
+      "updatedAt": "2026-11-13T08:47:59.779Z",
+      "eventType": "OUT_FOR_DELIVERY"
+    },
+    {
+      "eventId": "d85ad120-f093-462c-9d98-8c57340e60a0",
+      "orderId": "4101971a-7494-4802-8116-2c1efe69103c",
+      "status": "DELIVERED",
+      "previousStatus": "OUT_FOR_DELIVERY",
+      "version": 8,
+      "updatedAt": "2026-11-13T08:48:03.892Z",
+      "eventType": "ORDER_DELIVERED"
+    }
+  ],
+  "devices": "One Android emulator with sequential role switching; simultaneous independent authenticated customer socket"
+}
