@@ -16,6 +16,7 @@ import 'dotenv/config';
 import { createDatabase } from '../src/database/client';
 import { classifyDish, TASTES, type Taste } from '../src/modules/food-finder/food-taxonomy';
 import { NUTRITION_REF as BASE_REF, NUTRITION_SOURCE } from './seed_catalog_expansion';
+import { FAMILY_REF, FAMILY_SOURCE, referenceFor } from './nutrition_reference';
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -43,7 +44,7 @@ export const EXTRA_REF: Record<string, { serving: string; grams: number; kcal: n
   pavBhaji: { serving: '2 pavs with bhaji', grams: 350, kcal: 560, p: 13, c: 70, f: 25 },
   frenchFries: { serving: '1 medium portion', grams: 120, kcal: 370, p: 4, c: 46, f: 18 },
 };
-export const ALL_REF = { ...BASE_REF, ...EXTRA_REF };
+export const ALL_REF = { ...BASE_REF, ...EXTRA_REF, ...FAMILY_REF };
 
 /** [key, name, description, categoryId, imageKey, rupees, veg, nutritionRef, curated tastes, spice 0-3] */
 type T = [string, string, string, string, string, number, boolean, string | null, string, number];
@@ -185,6 +186,8 @@ export const TEMPLATES: T[] = [
   ['buttermilk','Masala Buttermilk','Spiced chaas with ginger, curry leaves and coriander.','beverages','cold-beverage',39,true,null,'tangy light',0],
   ['badam-milk','Badam Milk','Warm almond milk with saffron.','beverages','cold-beverage',69,true,null,'sweet creamy',0],
   // Haleem
+  ['family-chicken-biryani','Family Pack Chicken Biryani','Chicken dum biryani for about three, with mirchi salan and raita.','biryani','chicken-biryani',449,false,'familyChickenBiryani','spicy aromatic rich savory',2],
+  ['paneer-rice-bowl','Paneer Tikka Rice Bowl','Paneer tikka over jeera rice with makhani gravy and salad.','bowls','paneer',179,true,'paneerRiceBowl','smoky savory',1],
   ['mutton-haleem','Mutton Haleem','Slow-pounded wheat, lentils and goat meat with ghee and fried onions.','biryani','haleem',249,false,null,'rich aromatic spicy savory',2],
   ['chicken-haleem','Chicken Haleem','Slow-pounded wheat, lentils and chicken with ghee.','biryani','haleem',199,false,null,'rich aromatic savory',2],
 ];
@@ -196,17 +199,17 @@ export const ASSIGNMENTS: Record<string, string[]> = {
   'hearth': ['farmhouse-pizza','paneer-tikka-pizza','chicken-tikka-pizza','bbq-chicken-pizza','mini-margherita','penne-arrabbiata','alfredo','chicken-pesto-pasta','brownie','cold-coffee','fresh-lime','peri-fries'],
   'table': ['quinoa-bowl','chicken-protein-bowl','paneer-protein-bowl','egg-protein-bowl','sprouts-salad','falafel-wrap','grilled-fish-bowl','chicken-rice-bowl','millet-khichdi','fresh-lime','buttermilk','brownie'],
   'bun': ['aloo-tikki-burger','paneer-burger','chicken-zinger','grilled-chicken-burger','double-chicken-burger','french-fries','peri-fries','chicken-nuggets','cold-coffee','chicken-tikka-roll','paneer-tikka-wrap','brownie'],
-  'deccan-handi-gachi': ['mini-chicken-biryani','spicy-chicken-biryani','chicken-65-biryani','paneer-biryani','chicken-pulao','mutton-haleem','double-ka-meetha','qubani'],
+  'deccan-handi-gachi': ['chicken-dum-biryani','family-chicken-biryani','egg-biryani','veg-dum-biryani','mini-chicken-biryani','spicy-chicken-biryani','chicken-65-biryani','paneer-biryani','chicken-pulao','mutton-haleem','double-ka-meetha','qubani'],
   'gachibowli-tiffin': ['masala-dosa','ghee-roast-dosa','pesarattu','idli-sambar','sambar-vada','poori-bhaji','mirchi-bajji'],
   'fd-smash-gachi': ['chicken-zinger','grilled-chicken-burger','paneer-burger','chicken-tikka-roll','paneer-tikka-wrap','peri-fries','chicken-nuggets'],
   'cyberabad-wok-madhapur': ['veg-hakka-noodles','chicken-hakka-noodles','schezwan-noodles','chicken-schezwan-rice','egg-fried-rice','veg-fried-rice','chilli-chicken','gobi-manchurian','chilli-paneer','veg-momos','chicken-momos','fried-chicken-momos'],
-  'pind-handi-madhapur': ['butter-chicken','kadai-chicken','dal-makhani','chole','kadai-paneer','butter-naan','garlic-naan','jeera-rice','sweet-lassi'],
-  'botanical-bowl-madhapur': ['quinoa-bowl','chicken-protein-bowl','paneer-protein-bowl','egg-protein-bowl','sprouts-salad','chicken-rice-bowl','millet-khichdi','fresh-lime'],
+  'pind-handi-madhapur': ['chicken-thali','veg-thali','butter-chicken','kadai-chicken','dal-makhani','chole','kadai-paneer','butter-naan','garlic-naan','jeera-rice','sweet-lassi'],
+  'botanical-bowl-madhapur': ['paneer-rice-bowl','quinoa-bowl','chicken-protein-bowl','paneer-protein-bowl','egg-protein-bowl','sprouts-salad','chicken-rice-bowl','millet-khichdi','fresh-lime'],
   'woodstone-hitec': ['farmhouse-pizza','chicken-tikka-pizza','bbq-chicken-pizza','mini-margherita','penne-arrabbiata','alfredo','chicken-pesto-pasta'],
   'charcoal-hitec': ['tandoori-chicken-half','malai-tikka','seekh-kebab','tangdi','paneer-tikka','chicken-tikka-roll','butter-naan','mutton-rogan-josh'],
   'oven-crumb-kondapur': ['brownie','veg-puff','egg-puff','chicken-puff','cold-coffee','osmania-biscuits','french-fries'],
   'chaat-mandi-kondapur': ['pani-puri','dahi-puri','papdi-chaat','samosa-chaat','pav-bhaji','vada-pav','bhel','aloo-tikki-chaat','veg-samosa','masala-chai'],
-  'kaveri-veg-biryani-kuka': ['veg-dum-biryani','paneer-biryani','mushroom-biryani','veg-pulao','jeera-rice','veg-thali','double-ka-meetha','buttermilk'],
+  'kaveri-veg-biryani-kuka': ['paneer-rice-bowl','veg-dum-biryani','paneer-biryani','mushroom-biryani','veg-pulao','jeera-rice','veg-thali','double-ka-meetha','buttermilk'],
   'suprabhat-tiffins-kuka': ['masala-dosa','pesarattu','andhra-meals','bisi-bele-bath','lemon-rice','medu-vada','onion-pakoda'],
   'crunch-box-kuka': ['chicken-zinger','aloo-tikki-burger','egg-roll','chicken-tikka-roll','french-fries','peri-fries','chicken-nuggets','cold-coffee'],
   'kesar-clove-jubilee': ['butter-chicken','chicken-tikka-masala','mutton-rogan-josh','paneer-butter-masala','palak-paneer','dal-makhani','garlic-naan','phirni'],
@@ -216,10 +219,10 @@ export const ASSIGNMENTS: Record<string, string[]> = {
   'koyla-seekh-banjara': ['tandoori-chicken-half','chicken-tikka','malai-tikka','seekh-kebab','tangdi','paneer-tikka','tandoori-roti','mutton-rogan-josh'],
   'deccan-leaf-ameerpet': ['andhra-meals','veg-thali','chicken-thali','bisi-bele-bath','lemon-rice','mirchi-bajji','buttermilk'],
   'begum-chaat-ameerpet': ['pani-puri','dahi-puri','papdi-chaat','bhel','vada-pav','samosa-chaat','masala-chai','onion-pakoda'],
-  'golconda-zafran-mehdi': ['mutton-dum-biryani','chicken-dum-biryani','mini-chicken-biryani','egg-biryani','chicken-haleem','mutton-haleem','qubani','chicken-pulao'],
+  'golconda-zafran-mehdi': ['family-chicken-biryani','mutton-dum-biryani','chicken-dum-biryani','mini-chicken-biryani','egg-biryani','chicken-haleem','mutton-haleem','qubani','chicken-pulao'],
   'irani-bakery-mehdi': ['osmania-biscuits','irani-chai','veg-puff','egg-puff','chicken-puff','brownie','badam-milk'],
   'dakshin-sunrise-secund': ['masala-dosa','mysore-masala-dosa','rava-idli','idli-sambar','medu-vada','sambar-vada','onion-uttapam','ragi-dosa'],
-  'clock-tower-secund': ['veg-thali','north-thali','chicken-thali','chole','kadai-paneer','egg-biryani','jeera-rice','mini-chicken-biryani'],
+  'clock-tower-secund': ['paneer-rice-bowl','veg-thali','north-thali','chicken-thali','chole','kadai-paneer','egg-biryani','jeera-rice','mini-chicken-biryani'],
 };
 
 /** Illustrative price positioning per kitchen (budget ×0.9, premium ×1.15). */
@@ -290,7 +293,20 @@ export async function seedFoodFinderCatalog(db: ReturnType<typeof createDatabase
       profiles++;
     }
   }, { timeout: 120000 });
-  return { created, skippedDuplicate, nutrition, profiles };
+  // Reference-based estimates for items still without nutrition (explicit name rules per food family).
+  let nutritionFromFamily = 0;
+  await db.$transaction(async (tx) => {
+    const missing = await tx.menuItem.findMany({ where: { nutrition: { is: null }, profile: { isNot: null } }, select: { id: true, name: true, profile: true } });
+    for (const it of missing) {
+      const key = referenceFor(it.name, it.profile!);
+      const n = key ? ALL_REF[key] : null;
+      if (!n) continue;
+      await tx.menuItemNutrition.create({ data: { menuItemId: it.id, servingDescription: n.serving, servingGrams: n.grams, caloriesKcal: n.kcal,
+        proteinG: n.p, carbsG: n.c, fatG: n.f, basis: 'ESTIMATE', source: FAMILY_SOURCE } });
+      nutritionFromFamily++;
+    }
+  }, { timeout: 120000 });
+  return { created, skippedDuplicate, nutrition, profiles, nutritionFromFamily };
 }
 
 async function addNutrition(tx: any, menuItemId: string, ref: string) {
