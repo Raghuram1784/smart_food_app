@@ -70,6 +70,9 @@ model Restaurant {
   isDemo                      Boolean                  @default(true)
   displayOrder                Int                      @default(0)
   localityId                  String?                  @db.VarChar(64)
+  /// Brand this outlet belongs to (several outlets can share one brand).
+  brandId                     String?                  @db.VarChar(64)
+  brand                       RestaurantBrand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
   createdAt                   DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt                   DateTime                 @updatedAt @db.Timestamptz(3)
   locality                    Locality?                @relation(fields: [localityId], references: [id], onDelete: SetNull)
@@ -82,6 +85,7 @@ model Restaurant {
 
   @@index([operatingStatus, displayOrder, id])
   @@index([localityId, operatingStatus, displayOrder, id])
+  @@index([brandId])
 }
 
 model Category {
@@ -748,4 +752,13 @@ model MenuItemProfile {
 
   @@index([foodFamily])
   @@index([dishGroup])
+}
+
+/// A restaurant brand. Each outlet (Restaurant row) keeps its own locality, menu, zones, owners and orders.
+model RestaurantBrand {
+  id        String       @id @db.VarChar(64)
+  name      String       @db.VarChar(160)
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+  outlets   Restaurant[]
 }
