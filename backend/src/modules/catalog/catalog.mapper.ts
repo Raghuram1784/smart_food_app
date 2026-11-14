@@ -23,6 +23,7 @@ export const itemInclude = {
     include: { addOn: true },
     orderBy: { addOn: { pricePaise: 'asc' as const } },
   },
+  nutrition: true,
 };
 
 export function restaurantDto(r: Prisma.RestaurantGetPayload<{include: typeof restaurantInclude}>) {
@@ -49,6 +50,20 @@ export function itemDto(d: Prisma.MenuItemGetPayload<{include: typeof itemInclud
     ...d,
     restaurant: restaurantDto(d.restaurant),
     addOns: d.addOns.map((x) => x.addOn),
+    // Per base serving; null = nutrition unavailable. Never defaulted to 0.
+    nutrition: d.nutrition
+      ? {
+          servingDescription: d.nutrition.servingDescription,
+          servingGrams: d.nutrition.servingGrams,
+          caloriesKcal: d.nutrition.caloriesKcal,
+          proteinG: Number(d.nutrition.proteinG),
+          carbsG: d.nutrition.carbsG == null ? null : Number(d.nutrition.carbsG),
+          fatG: d.nutrition.fatG == null ? null : Number(d.nutrition.fatG),
+          basis: d.nutrition.basis,
+          source: d.nutrition.source,
+          appliesTo: 'BASE_SERVING_ONLY',
+        }
+      : null,
   };
 }
 

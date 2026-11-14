@@ -4,6 +4,7 @@ import {AuthenticatedPrincipal} from '../auth/auth.types';
 import {DeliveryHandover,Prisma} from '../../generated/prisma/client';
 import {OperationsService,operationInclude,queueEvent} from './operations.service';
 import {generatePin,handoverConfig,matchesPin,openPin,pinVerifier,sealPin} from './handover.crypto';
+import {HANDOVER_LIVE_STATUSES,issueHandoverInTx} from './handover.issue';
 
 @Injectable()
 export class HandoverService {
@@ -25,7 +26,10 @@ export class HandoverService {
   private sameAssignment(h:DeliveryHandover,o:any){return o.assignment?.id===h.assignmentId&&o.assignment?.riderId===h.boundRiderId;}
   private state(h:DeliveryHandover|null,o:any,now:Date){
     if(h?.consumedAt)return 'CONSUMED';
-    if(o.status!=='OUT_FOR_DELIVERY'||o.assignment?.status!=='OUT_FOR_DELIVERY')return 'UNAVAILABLE';
+    // The OTP is issued automatically when a rider accepts, so it is live from
+    // READY_FOR_PICKUP (assigned) through OUT_FOR_DELIVERY. Verification still
+    // requires OUT_FOR_DELIVERY (see complete()).
+    if(!(HANDOVER_LIVE_STATUSES as readonly string[]).includes(o.status)||o.assignment?.status!==o.status)return 'UNAVAILABLE';
     if(!h)return 'NOT_ISSUED';
     if(h.invalidatedAt||!this.sameAssignment(h,o))return 'INVALIDATED';
     if(h.lockedAt)return 'LOCKED';
@@ -81,6 +85,36 @@ export class HandoverService {
       const h=old?await tx.deliveryHandover.update({where:{id:old.id},data}):await tx.deliveryHandover.create({data});
       await this.audit(tx,h,p,old?'REISSUED':'ISSUED');
       return {value:this.customerResponse(h,o,now)};
+    });
+    if('error' in result)throw new HttpException(result.message!,result.error!);
+    return result.value;
+  }
+  /**
+   * Rider tapped "I've Arrived". Keeps a still-valid OTP; otherwise (expired,
+   * invalidated, or lock period over) re-issues within the F7 limits and notifies
+   * the customer. The rider never receives the PIN.
+   */
+  async arrived(p:AuthenticatedPrincipal,id:string){
+    const config=handoverConfig();
+    const result=await this.database.client.$transaction(async tx=>{
+      const o=await this.lockedOrder(tx,p,id,'DELIVERY_PARTNER'),now=new Date();
+      if(o.status!=='OUT_FOR_DELIVERY'||o.assignment?.status!=='OUT_FOR_DELIVERY')return {error:409,message:'Mark the order Out for Delivery before arriving'} as const;
+      let h=await tx.deliveryHandover.findUnique({where:{orderId:id}});
+      h=await this.invalidateChanged(tx,h,o,p);
+      const state=this.state(h,o,now);
+      if(state==='CONSUMED')return {error:409,message:'Delivery already completed'} as const;
+      if(state==='LOCKED'&&h!.lockedUntil&&h!.lockedUntil>now)return {error:429,message:'Too many incorrect OTP attempts. Try again after the lock period.'} as const;
+      let reissued=false;
+      if(state!=='ACTIVE'){
+        const out=await issueHandoverInTx(tx,o,p.userId,'ARRIVAL_REISSUED');
+        if(!out.ok)return {error:out.status,message:out.message} as const;
+        h=out.handover;reissued=true;
+      }
+      if(!await tx.orderEvent.findFirst({where:{orderId:id,eventType:'RIDER_ARRIVED'}})){
+        const event=await tx.orderEvent.create({data:{orderId:id,actorUserId:p.userId,eventType:'RIDER_ARRIVED',previousStatus:o.status,newStatus:o.status,metadata:{}}});
+        await queueEvent(tx,event.id);
+      }
+      return {value:{orderId:id,orderVersion:o.version,otpState:'ACTIVE',reissued,expiresAt:h!.expiresAt,attemptsRemaining:Math.max(0,config.maxAttempts-h!.failedAttempts)}};
     });
     if('error' in result)throw new HttpException(result.message!,result.error!);
     return result.value;

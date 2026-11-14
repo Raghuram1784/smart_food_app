@@ -37,9 +37,25 @@ export class OrdersService {
       return this.publicOrder(order);
     });
   }
-  publicOrder(order:Prisma.OrderGetPayload<{include:typeof orderInclude}>,owner=false){
+  publicOrder(order:Prisma.OrderGetPayload<{include:typeof orderInclude}> & {paymentAttempts?:any[]},owner=false){
     const {idempotencyKey,requestHash,customerId,pricingSnapshot,...safe}=order;
-    if(owner){const {deliveryAddressSnapshot,...withoutPii}=safe;return withoutPii;}
+    if(owner){
+      const {deliveryAddressSnapshot,...withoutPii}=safe;
+      const actions: string[] = [];
+      const isEligible = order.paymentMethod === 'RAZORPAY_TEST'
+        ? order.paymentStatus === 'PAID' && ((order as any).paymentAttempts ?? []).some((a: any) => a.status === 'CAPTURED' && a.environment === 'TEST' && a.amountPaise === order.finalPayablePaise && a.providerPaymentId)
+        : ['development', 'test'].includes(process.env.NODE_ENV ?? '') && process.env.DEMO_FULFILLMENT_ENABLED === 'true' && order.paymentStatus === 'UNPAID';
+
+      if (order.status === 'PENDING_RESTAURANT') {
+        if (isEligible) actions.push('accept');
+        actions.push('reject');
+      } else if (order.status === 'ACCEPTED') {
+        actions.push('start-preparing');
+      } else if (order.status === 'PREPARING') {
+        actions.push('ready');
+      }
+      return {...withoutPii, availableActions: actions, paymentEligible: isEligible};
+    }
     return safe;
   }
   list(p:AuthenticatedPrincipal,page:OrderPage){return this.store.run(p,async tx=>{
@@ -54,7 +70,7 @@ export class OrdersService {
     const member=await tx.restaurantMembership.findFirst({where:{userId:p.userId,restaurantId,status:'ACTIVE',membershipRole:'OWNER'}});
     if(!member)throw new ForbiddenException('No active owner membership for this restaurant');
     const where={restaurantId};
-    const items=await tx.order.findMany({where,include:orderInclude,orderBy:[{createdAt:'desc'},{id:'desc'}],skip:(page.page-1)*page.limit,take:page.limit});
+    const items=await tx.order.findMany({where,include:{...orderInclude,paymentAttempts:true},orderBy:[{createdAt:'desc'},{id:'desc'}],skip:(page.page-1)*page.limit,take:page.limit});
     return {items:items.map(o=>this.publicOrder(o,true)),total:await tx.order.count({where}),pendingCount:await tx.order.count({where:{restaurantId,status:'PENDING_RESTAURANT'}}),...page};
   },{isolationLevel:'RepeatableRead'});}
 }

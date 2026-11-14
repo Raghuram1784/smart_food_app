@@ -3,6 +3,9 @@ import {DatabaseService} from '../../database/database.module';
 import {AuthenticatedPrincipal} from '../auth/auth.types';
 import {Prisma,OrderStatus} from '../../generated/prisma/client';
 import {orderInclude} from '../commerce/commerce.store';
+import {ACTIVE_ASSIGNMENT_STATUSES} from './assignment-status';
+import {closeOffersForOrder,createOffersForOrder} from './dispatch.service';
+import {issueHandoverInTx} from './handover.issue';
 
 export const operationInclude={...orderInclude,paymentAttempts:true,assignment:{include:{rider:{select:{displayName:true}}}},restaurant:{select:{address:true,name:true}}};
 export const transitions:Record<string,{from:OrderStatus;to:OrderStatus;event:string;role:'RESTAURANT_OWNER'|'DELIVERY_PARTNER'}>={
@@ -40,7 +43,7 @@ export class OperationsService {
     const {paymentAttempts,requestHash,idempotencyKey,pricingSnapshot,customerId,...safe}=o;
     if(role!=='CUSTOMER'&&role!=='DELIVERY_PARTNER')delete safe.deliveryAddressSnapshot;
     const actions=Object.entries(transitions).filter(([action,t])=>t.role===role&&t.from===o.status&&(action!=='accept'||eligible(o))).map(([a])=>a);
-    if(role==='DELIVERY_PARTNER'&&o.status==='OUT_FOR_DELIVERY')actions.push('complete-handover');
+    if(role==='DELIVERY_PARTNER'&&o.status==='OUT_FOR_DELIVERY')actions.push('arrived','complete-handover');
     return {...safe,availableActions:actions,paymentEligible:eligible(o)};
   }
   async detail(p:AuthenticatedPrincipal,id:string,role:string){return this.database.client.$transaction(async tx=>{
@@ -53,7 +56,7 @@ export class OperationsService {
     return {items:items.map(o=>this.present(o,role)),total:await tx.order.count({where}),page};
   });}
   async riders(p:AuthenticatedPrincipal){return this.database.client.$transaction(async tx=>{
-    await this.current(tx,p,'ADMIN');return tx.user.findMany({where:{status:'ACTIVE',roles:{some:{roleName:'DELIVERY_PARTNER'}},riderAssignments:{none:{status:{not:'DELIVERED'}}}},select:{id:true,displayName:true},orderBy:{displayName:'asc'},take:100});
+    await this.current(tx,p,'ADMIN');return tx.user.findMany({where:{status:'ACTIVE',roles:{some:{roleName:'DELIVERY_PARTNER'}},riderAssignments:{none:{status:{in:ACTIVE_ASSIGNMENT_STATUSES}}}},select:{id:true,displayName:true},orderBy:{displayName:'asc'},take:100});
   });}
   async mutate(p:AuthenticatedPrincipal,id:string,action:string,expectedVersion:number,reason?:string,riderId?:string){
     if(action==='deliver'||action==='complete-handover')throw new ConflictException('Customer handover PIN verification is required');
@@ -70,14 +73,20 @@ export class OperationsService {
         if(!riderId)throw new ConflictException('Choose an active rider');
         await tx.$queryRaw`SELECT id FROM "User" WHERE id=${riderId}::uuid FOR UPDATE`;
         const rider=await tx.user.findFirst({where:{id:riderId,status:'ACTIVE',roles:{some:{roleName:'DELIVERY_PARTNER'}}}});
-        if(!rider||o.assignment||await tx.deliveryAssignment.count({where:{riderId,status:{not:'DELIVERED'}}}))throw new ConflictException('Rider unavailable or order already assigned');
-        await tx.deliveryAssignment.create({data:{orderId:id,riderId,assignedById:p.userId}});
+        if(!rider||o.assignment||await tx.deliveryAssignment.count({where:{riderId,status:{in:ACTIVE_ASSIGNMENT_STATUSES}}}))throw new ConflictException('Rider unavailable or order already assigned');
+        const assignment=await tx.deliveryAssignment.create({data:{orderId:id,riderId,assignedById:p.userId}});
+        // Admin fallback: close open invitations and issue the customer OTP, exactly as an accepted invitation would.
+        await closeOffersForOrder(tx,id);
+        const issued=await issueHandoverInTx(tx,{id,status:o.status,assignment},p.userId,'ASSIGNMENT_ISSUED');
+        if(!issued.ok)throw new ConflictException(issued.message);
       }
       const next=action==='assign'?o.status:rule.to,version=o.version+1;
       await tx.order.update({where:{id},data:{status:next,version,...(action==='reject'?{rejectionReason:reason!.trim(),refundReviewRequired:o.paymentStatus==='PAID'}:{})}});
       if(role==='DELIVERY_PARTNER')await tx.deliveryAssignment.update({where:{orderId:id},data:{status:next,...(action==='pickup'?{pickedUpAt:new Date()}:{})}});
       const event=await tx.orderEvent.create({data:{orderId:id,actorUserId:p.userId,eventType:action==='assign'?'RIDER_ASSIGNED':rule.event,previousStatus:o.status,newStatus:next,sequence:version,metadata:action==='reject'?{reason:reason!.trim(),refundReviewRequired:o.paymentStatus==='PAID'}:{}}});
       await queueEvent(tx,event.id);
+      // Ready for pickup: invite every eligible online rider (no GPS, no admin step).
+      if(action==='ready')await createOffersForOrder(tx,id);
       return this.present(await tx.order.findUniqueOrThrow({where:{id},include:operationInclude}),role);
     });
   }

@@ -82,7 +82,9 @@ export async function operationsChecks(t:any,app:any,db:any,call:any,api:any,pai
       await dispatcher.dispatch();await new Promise(r=>setTimeout(r,50));assert.ok(received[1].some(e=>e.eventType==='RIDER_ASSIGNED'));
       const customer=sockets.find(s=>s.connected&&((s.auth as any).token===tokens[0]))!;customer.disconnect();
       o=(await change(o,'pickup',1).expect(200)).body.data;o=(await change(o,'out-for-delivery',1).expect(200)).body.data;await change(o,'deliver',1).expect(409);
-      const pin=(await call('post',`orders/${o.id}/handover/issue`).send({}).expect(200)).body.data.pin;
+      // OTP was issued automatically at assignment; the customer only reads it (no Generate step).
+      const otp=(await call('get',`orders/${o.id}/handover`).expect(200)).body.data;assert.equal(otp.state,'ACTIVE');
+      const pin=otp.pin;assert.match(pin,/^\d{6}$/);
       o=(await call('post',`operations/delivery/orders/${o.id}/complete-handover`,1).send({pin,expectedVersion:o.version}).expect(200)).body.data;
       await connect(tokens[0]);assert.equal((await call('get',`orders/${o.id}`).expect(200)).body.data.status,'DELIVERED');
       await change(o,'pickup',1).expect(409);assert.equal(o.paymentStatus,'PAID');

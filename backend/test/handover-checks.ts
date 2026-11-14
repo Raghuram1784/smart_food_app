@@ -29,7 +29,7 @@ export async function handoverChecks(t:any,app:any,db:any,call:any,api:any,fixtu
       const r=await call('get',path,path.includes('delivery')?1:path.includes('dispatch')?3:0).expect(200);
       for(const key of ['encryptedPin','verifier','HANDOVER_HMAC_KEY'])assert.equal(JSON.stringify(r.body).includes(key),false);
       assert.equal(JSON.stringify(r.body).includes(`"pin"`),false);
-      if(path.includes('delivery'))assert.deepEqual(r.body.data.availableActions,['complete-handover']);
+      if(path.includes('delivery'))assert.deepEqual(r.body.data.availableActions,['arrived','complete-handover']);
     }
   }));
   await t.test('handover concurrent incorrect guesses persist and lock after five',()=>withOrder(async(o:any)=>{

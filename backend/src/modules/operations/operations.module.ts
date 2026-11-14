@@ -8,6 +8,9 @@ import {AuthenticatedPrincipal} from '../auth/auth.types';
 import {OrderPage,UuidParam} from '../commerce/commerce.dto';
 import {OperationsService} from './operations.service';
 import {OrderGateway,OutboxDispatcher} from './realtime';
+import {RiderPresenceController} from './rider-presence.controller';
+import {RiderPresenceService} from './rider-presence.service';
+import {DispatchService} from './dispatch.service';
 class ActionInput {
   @IsInt() @Min(1) expectedVersion!:number;
   @IsOptional() @IsString() @Length(5,300) reason?:string;
@@ -15,7 +18,11 @@ class ActionInput {
 class AssignmentInput extends ActionInput { @IsUUID() riderId!:string; }
 @Controller('operations') @UseGuards(AuthGuard,RolesGuard)
 class OperationsController {
-  constructor(@Inject(OperationsService) readonly service:OperationsService,@Inject(HandoverService) readonly handover:HandoverService){}
+  constructor(@Inject(OperationsService) readonly service:OperationsService,@Inject(HandoverService) readonly handover:HandoverService,@Inject(DispatchService) readonly dispatch:DispatchService){}
+  @Get('delivery/offers') @Roles('DELIVERY_PARTNER') offers(@CurrentUser() p:AuthenticatedPrincipal){return this.dispatch.offers(p);}
+  @Post('delivery/offers/:id/accept') @HttpCode(200) @Roles('DELIVERY_PARTNER') acceptOffer(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam){return this.dispatch.accept(p,q.id);}
+  @Post('delivery/offers/:id/decline') @HttpCode(200) @Roles('DELIVERY_PARTNER') declineOffer(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam){return this.dispatch.decline(p,q.id);}
+  @Post('delivery/orders/:id/arrived') @HttpCode(200) @Roles('DELIVERY_PARTNER') @UseGuards(HandoverRateGuard) arrived(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam){return this.handover.arrived(p,q.id);}
   @Get('restaurant/orders') @Roles('RESTAURANT_OWNER') listOwner(@CurrentUser() p:AuthenticatedPrincipal,@Query() q:OrderPage){return this.service.list(p,'RESTAURANT_OWNER',q.page);}
   @Get('restaurant/orders/:id') @Roles('RESTAURANT_OWNER') owner(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam){return this.service.detail(p,q.id,'RESTAURANT_OWNER');}
   @Post('restaurant/orders/:id/:action') @HttpCode(200) @Roles('RESTAURANT_OWNER') kitchen(@CurrentUser() p:AuthenticatedPrincipal,@Param('id',new ParseUUIDPipe()) id:string,@Param('action') action:string,@Body() b:ActionInput){if(!['accept','reject','start-preparing','ready'].includes(action))throw new NotFoundException();return this.service.mutate(p,id,action,b.expectedVersion,b.reason);}
@@ -27,5 +34,5 @@ class OperationsController {
   @Get('dispatch/riders') @Roles('ADMIN') riders(@CurrentUser() p:AuthenticatedPrincipal){return this.service.riders(p);}
   @Post('dispatch/orders/:id/assign') @HttpCode(200) @Roles('ADMIN') assign(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam,@Body() b:AssignmentInput){return this.service.mutate(p,q.id,'assign',b.expectedVersion,undefined,b.riderId);}
 }
-@Module({imports:[AuthModule],controllers:[CustomerHandoverController,OperationsController],providers:[HandoverService,HandoverRateGuard,OperationsService,OrderGateway,OutboxDispatcher]})
+@Module({imports:[AuthModule],controllers:[CustomerHandoverController,OperationsController,RiderPresenceController],providers:[HandoverService,HandoverRateGuard,OperationsService,OrderGateway,OutboxDispatcher,RiderPresenceService,DispatchService],exports:[RiderPresenceService]})
 export class OperationsModule{}

@@ -52,7 +52,8 @@ export class CatalogService {
   async restaurants(q: CatalogQuery) {
     const where: Prisma.RestaurantWhereInput = {
       ...(q.cuisine ? { cuisines: { some: { cuisineId: q.cuisine } } } : {}),
-      ...(q.category ? { items: { some: { categoryId: q.category } } } : {}),
+      // One `items.some` so category and diet are matched on the same dish.
+      ...(q.category || q.diet ? { items: { some: { ...(q.category ? { categoryId: q.category } : {}), ...(q.diet ? { isVegetarian: q.diet === 'veg' } : {}) } } } : {}),
       ...(q.q ? { name: { contains: q.q, mode: 'insensitive' } } : {}),
       ...(q.area ? { zones: { some: { zoneId: q.area, isEligible: true } } } : {}),
     };
@@ -114,6 +115,7 @@ export class CatalogService {
     const where: Prisma.MenuItemWhereInput = {
       ...(q.category ? { categoryId: q.category } : {}),
       ...(q.maxPricePaise !== undefined ? { basePricePaise: { lte: q.maxPricePaise } } : {}),
+      ...(q.diet ? { isVegetarian: q.diet === 'veg' } : {}),
       ...(Object.keys(restaurantFilter).length > 0 ? { restaurant: restaurantFilter } : {}),
       AND: wordsWhere(words),
     };

@@ -1,4 +1,4 @@
-import {Body,Controller,Delete,Get,HttpCode,Inject,Module,Param,Patch,Post,Query,UseGuards} from '@nestjs/common';
+import {Body,Controller,Delete,Get,Header,HttpCode,Inject,Module,Param,Patch,Post,Query,UseGuards} from '@nestjs/common';
 import {AuthModule} from '../auth/auth.module';
 import {AuthGuard,CurrentUser,Roles,RolesGuard} from '../auth/auth.guards';
 import {AuthenticatedPrincipal} from '../auth/auth.types';
@@ -22,6 +22,7 @@ class CartController {
 class AddressesController {
   constructor(@Inject(CartService) readonly service:CartService){}
   @Get() list(@CurrentUser() p:AuthenticatedPrincipal){return this.service.addresses(p);}
+  @Get(':id/serviceability') @Header('Cache-Control','no-store') serviceability(@CurrentUser() p:AuthenticatedPrincipal,@Param() ids:UuidParam){return this.service.serviceability(p,ids.id);}
   @Post() create(@CurrentUser() p:AuthenticatedPrincipal,@Body() input:AddressInput){return this.service.saveAddress(p,input);}
   @Patch(':id') update(@CurrentUser() p:AuthenticatedPrincipal,@Param() ids:UuidParam,@Body() input:AddressInput){return this.service.saveAddress(p,input,ids.id);}
   @Delete(':id') remove(@CurrentUser() p:AuthenticatedPrincipal,@Param() ids:UuidParam){return this.service.deleteAddress(p,ids.id);}

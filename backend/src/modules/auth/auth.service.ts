@@ -33,4 +33,38 @@ export class AuthService {
     if(!membership||membership.status!=='ACTIVE'||membership.membershipRole!=='OWNER') throw new ForbiddenException('No active owner membership for this restaurant');
     return {membershipRole:membership.membershipRole,restaurant:membership.restaurant,capabilities:['VIEW_RESTAURANT_CONTEXT']};
   }
+  async demoRestaurants() {
+    if (!demoAllowed()) throw new ForbiddenException('Demo endpoints are disabled');
+    const memberships = await this.database.client.restaurantMembership.findMany({
+      where: {
+        status: 'ACTIVE',
+        membershipRole: 'OWNER',
+        user: { isDemo: true },
+      },
+      select: {
+        restaurantId: true,
+        restaurant: {
+          select: {
+            name: true,
+            locality: { select: { name: true } },
+          },
+        },
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        restaurant: { name: 'asc' },
+      },
+    });
+
+    return memberships.map((m) => ({
+      restaurantId: m.restaurantId,
+      restaurantName: m.restaurant.name,
+      localityName: m.restaurant.locality?.name ?? '',
+      ownerEmail: m.user.email,
+    }));
+  }
 }
