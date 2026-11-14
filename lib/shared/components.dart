@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/catalog/catalog_repository.dart';
 import '../features/catalog/catalog_state.dart';
+import '../features/location/delivery_location_sheet.dart';
+import '../features/catalog/diet_preference.dart';
 
 class FoodPhoto extends StatelessWidget {
   final String name, folder;
@@ -153,15 +155,15 @@ class RestaurantCard extends StatelessWidget {
                           : restaurant.cuisine,
                       style: theme.textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    // Server-evaluated eligibility for the confirmed destination.
+                    // No delivery ETA is shown: road routing is not available.
+                    ServiceabilityBadge(restaurant.id),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 12,
                       runSpacing: 6,
                       children: [
-                        Text(
-                          '◷ ${restaurant.time}',
-                          style: theme.textTheme.labelMedium,
-                        ),
                         Text(
                           from == null
                               ? 'Menu coming soon'
@@ -329,17 +331,14 @@ Widget _dishContents(BuildContext context, Dish dish) {
                   ),
                 ),
               ),
-              if (dish.isVegetarian == true)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.extension<CulinaryColors>()!.pistachio,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text('Veg', style: theme.textTheme.labelSmall),
+              if (dish.isVegetarian != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    VegMark(veg: dish.isVegetarian!),
+                    const SizedBox(width: 4),
+                    Text(dish.isVegetarian! ? 'Veg' : 'Non-veg', style: theme.textTheme.labelSmall),
+                  ],
                 ),
             ],
           ),
@@ -352,6 +351,8 @@ Widget _dishContents(BuildContext context, Dish dish) {
               color: scheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 12),
+          NutritionPanel(dish.nutrition),
           if (!available) ...[
             const SizedBox(height: 14),
             Container(
@@ -432,4 +433,89 @@ Widget _dishContents(BuildContext context, Dish dish) {
       ),
     ),
   );
+}
+
+
+/// Nutrition section for a dish. Shows "Nutrition unavailable" when the backend
+/// has no record (never 0), labels estimates, and states the serving size.
+class NutritionPanel extends StatelessWidget {
+  final Nutrition? nutrition;
+  const NutritionPanel(this.nutrition, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final n = nutrition;
+    return Container(
+      key: const ValueKey('nutrition-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: n == null
+          ? Row(children: [
+              Icon(Icons.info_outline, size: 18, color: scheme.outline),
+              const SizedBox(width: 8),
+              Text('Nutrition unavailable', style: theme.textTheme.bodySmall),
+            ])
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text('Nutrition', style: theme.textTheme.titleSmall),
+                  const SizedBox(width: 8),
+                  if (n.isEstimate)
+                    DecoratedBox(
+                      decoration: BoxDecoration(color: scheme.tertiaryContainer, borderRadius: BorderRadius.circular(8)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Text('Estimate', style: theme.textTheme.labelSmall),
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: 2),
+                Text(
+                  'Per ${n.servingDescription}${n.servingGrams != null ? ' (~${n.servingGrams} g)' : ''} · base serving, excludes variants and add-ons',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 6,
+                  children: [
+                    _Macro('Calories', '${n.caloriesKcal} kcal'),
+                    _Macro('Protein', '${_g(n.proteinG)} g'),
+                    if (n.carbsG != null) _Macro('Carbs', '${_g(n.carbsG!)} g'),
+                    if (n.fatG != null) _Macro('Fat', '${_g(n.fatG!)} g'),
+                  ],
+                ),
+                if (n.isEstimate) ...[
+                  const SizedBox(height: 6),
+                  Text('Approximate values, not lab-tested or certified. ${n.source}', style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                ],
+              ],
+            ),
+    );
+  }
+
+  static String _g(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+}
+
+class _Macro extends StatelessWidget {
+  final String label, value;
+  const _Macro(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(value, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(label, style: theme.textTheme.labelSmall),
+      ],
+    );
+  }
 }

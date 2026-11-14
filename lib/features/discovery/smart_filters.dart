@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers.dart';
 import '../catalog/catalog.dart';
 import '../catalog/catalog_repository.dart';
 import '../pricing/pricing_repository.dart';
@@ -145,21 +144,11 @@ class _SmartFilterSheetState extends ConsumerState<SmartFilterSheet> {
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
-              select(
-                'Delivery locality',
-                area,
-                [
-                  for (final a in areas.asData?.value ?? <ServiceArea>[])
-                    (id: a.id, name: a.name),
-                ],
-                (v) => setState(() {
-                  if (v != null) {
-                    area = v;
-                    restaurant = null;
-                  }
-                }),
-                all: false,
+              Text(
+                'Prices are for your selected delivery address. Change it from Home → Deliver to.',
+                style: theme.textTheme.bodySmall,
               ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,

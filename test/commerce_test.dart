@@ -408,8 +408,8 @@ void main() {
     (tester) async {
       final repo = FakeCommerce()..addresses = [];
       await mount(tester, const CartScreen(), repo, width: 360);
-      expect(find.text('Choose delivery address'), findsWidgets);
-      expect(find.text('Delivery address required'), findsOneWidget);
+      // First-time customer: the short address form is shown inline at checkout.
+      expect(find.text('Add delivery address'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
 
       final blocked = FakeCommerce()

@@ -63,7 +63,44 @@ class DishOption {
       );
 }
 
+/// Nutrition for one base serving, as stored by the backend. Null on a dish
+/// means "Nutrition unavailable" — never treated as zero.
+class Nutrition {
+  final String servingDescription;
+  final int? servingGrams;
+  final int caloriesKcal;
+  final double proteinG;
+  final double? carbsG, fatG;
+  final String basis; // ESTIMATE | LAB_TESTED | SUPPLIER_LABEL
+  final String source;
+  const Nutrition({
+    required this.servingDescription,
+    required this.caloriesKcal,
+    required this.proteinG,
+    required this.basis,
+    required this.source,
+    this.servingGrams,
+    this.carbsG,
+    this.fatG,
+  });
+  bool get isEstimate => basis == 'ESTIMATE';
+  static Nutrition? fromJson(dynamic j) {
+    if (j is! Map || j['caloriesKcal'] is! num || j['proteinG'] is! num) return null;
+    return Nutrition(
+      servingDescription: j['servingDescription'] as String? ?? 'per serving',
+      servingGrams: (j['servingGrams'] as num?)?.toInt(),
+      caloriesKcal: (j['caloriesKcal'] as num).toInt(),
+      proteinG: (j['proteinG'] as num).toDouble(),
+      carbsG: (j['carbsG'] as num?)?.toDouble(),
+      fatG: (j['fatG'] as num?)?.toDouble(),
+      basis: j['basis'] as String? ?? 'ESTIMATE',
+      source: j['source'] as String? ?? '',
+    );
+  }
+}
+
 class Dish {
+  final Nutrition? nutrition;
   final String id, restaurantId, name, description, category, image, section;
   // Offline fixture retains its original whole-rupee constructor; live money stays in paise.
   final int price;
@@ -127,6 +164,7 @@ class Dish {
     this.restaurantName = '',
     this.availabilityReason,
     this.isVegetarian,
+    this.nutrition,
     this.variantOptions = const [],
     this.addOnOptions = const [],
     this.variants = const [],
@@ -146,6 +184,7 @@ class Dish {
     restaurantName: j['restaurant']['name'] as String,
     availabilityReason: j['availabilityReason'] as String?,
     isVegetarian: j['isVegetarian'] as bool?,
+    nutrition: Nutrition.fromJson(j['nutrition']),
     variantOptions: (j['variants'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
         .map((v) => DishOption.fromJson(v, true))

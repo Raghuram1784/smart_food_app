@@ -2,7 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers.dart';
+import '../location/delivery_destination.dart';
+import '../location/delivery_location_sheet.dart';
 import '../../core/motion.dart';
 import '../catalog/catalog.dart';
 import 'pricing_repository.dart';
@@ -257,7 +258,32 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
     final d = widget.dish;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final area = ref.watch(locationProvider);
+    final area = ref.watch(deliveryServiceAreaProvider);
+    if (area == null) {
+      // No confirmed destination inside a service area: price previews need one.
+      // Adding to cart still works; delivery eligibility is enforced at checkout.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          const ChooseDestinationPrompt(
+            compact: true,
+            message: 'Choose a delivery location to see delivery fees and whether this kitchen delivers to you.',
+          ),
+          const SizedBox(height: 12),
+          AddToCartButton(
+            itemName: d.name,
+            enabled: true,
+            selection: {
+              'restaurantId': d.restaurantId,
+              'menuItemId': d.id,
+              'quantity': 1,
+              'addOnIds': <String>[],
+            },
+          ),
+        ],
+      );
+    }
     final request = (
       item: d.id,
       restaurant: d.restaurantId,
@@ -413,6 +439,7 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
         ),
         const SizedBox(height: 14),
         AddToCartButton(
+          itemName: d.name,
           enabled: current != null && !state.isLoading,
           selection: {
             'restaurantId': d.restaurantId,

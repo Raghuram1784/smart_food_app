@@ -36,10 +36,19 @@ class RoleShell extends ConsumerWidget {
               (path == '/' || path == '/search')
           ? const CartShortcut()
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex.clamp(0, destinations.length - 1),
-        onDestinationSelected: (index) => _navigate(context, workspace, index),
-        destinations: destinations,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Sticky View Cart while browsing (server cart has items).
+          if (workspace == RoleWorkspace.customer &&
+              (path == '/' || path == '/search' || path == '/restaurants'))
+            const ViewCartBar(),
+          NavigationBar(
+            selectedIndex: selectedIndex.clamp(0, destinations.length - 1),
+            onDestinationSelected: (index) => _navigate(context, workspace, index),
+            destinations: destinations,
+          ),
+        ],
       ),
     );
   }
