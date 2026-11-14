@@ -31,11 +31,7 @@ class RoleShell extends ConsumerWidget {
           child: child,
         ),
       ),
-      floatingActionButton:
-          workspace == RoleWorkspace.customer &&
-              (path == '/' || path == '/search')
-          ? const CartShortcut()
-          : null,
+      // No floating cart button: the sticky View cart bar and the Cart tab cover it.
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

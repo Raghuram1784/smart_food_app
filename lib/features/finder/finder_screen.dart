@@ -89,7 +89,7 @@ class _FinderScreenState extends ConsumerState<FinderScreen> {
                         key: ValueKey('msg-$i'),
                         child: switch (m) {
                           UserFinderMessage(:final text) => _UserBubble(text),
-                          AssistantFinderMessage(:final reply) => _AssistantTurn(reply: reply, area: area, isLatest: i == lastAssistant && !state.busy, onPrompt: _send),
+                          AssistantFinderMessage(:final reply) => _AssistantTurn(reply: reply, area: area, isLatest: i == lastAssistant && !state.busy, onPrompt: _send, messageIndex: i),
                           NoteFinderMessage() => _Note(m, onRetry: m.retryText == null ? null : () => ref.read(finderControllerProvider.notifier).send(m.retryText!, isRetry: true)),
                         },
                       );
@@ -264,8 +264,9 @@ class _AssistantTurn extends ConsumerWidget {
   final FinderReply reply;
   final String? area;
   final bool isLatest;
+  final int messageIndex;
   final ValueChanged<String> onPrompt;
-  const _AssistantTurn({required this.reply, required this.area, required this.isLatest, required this.onPrompt});
+  const _AssistantTurn({required this.reply, required this.area, required this.isLatest, required this.onPrompt, this.messageIndex = 0});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -324,7 +325,7 @@ class _AssistantTurn extends ConsumerWidget {
         ]),
         if (reply.selected case final s?) ...[
           const SizedBox(height: 12),
-          RecommendationCard(rec: s, area: area, index: 0),
+          RecommendationCard(rec: s, area: area, index: 0, autoAdd: isLatest && ref.read(finderControllerProvider.notifier).claimAutoAdd('${reply.conversationId}:$messageIndex')),
         ],
         if (r != null) ..._results(context, r),
         if (isLatest && (reply.status == 'RESULTS' || reply.status == 'SELECTED')) ...[
@@ -382,20 +383,7 @@ class _AssistantTurn extends ConsumerWidget {
         ),
         ...cards(r.nearBudget),
       ],
-      if (r.isEmpty)
-        Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: Container(
-            key: const ValueKey('finder-empty'),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.outline)),
-            child: Row(children: [
-              Icon(Icons.search_off_outlined, color: c.muted),
-              const SizedBox(width: 12),
-              Expanded(child: Text('No dishes match yet. Try a higher budget, another dish or fewer filters.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: c.muted))),
-            ]),
-          ),
-        ),
+      // No separate empty-state card: the reply already explains, and refinement chips follow.
       if (r.notice.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 10, left: 4, right: 4),
@@ -588,7 +576,7 @@ class _FadeIn extends StatelessWidget {
       );
 }
 
-/// Home entry point for the finder.
+/// Compact Home entry point for the finder (an integrated row, not a banner).
 class FinderEntryCard extends StatelessWidget {
   const FinderEntryCard({super.key});
   @override
@@ -596,50 +584,29 @@ class FinderEntryCard extends StatelessWidget {
     final c = FinderColors.of(context);
     final text = Theme.of(context).textTheme;
     return Material(
-      color: c.forest,
-      borderRadius: BorderRadius.circular(24),
+      color: c.paleGreen,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: c.forest.withValues(alpha: .12))),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: const ValueKey('finder-entry'),
         onTap: () => context.push('/finder'),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
           child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: c.forest, shape: BoxShape.circle),
+              child: Icon(Icons.auto_awesome, size: 20, color: c.gold),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(Icons.auto_awesome, size: 16, color: c.gold),
-                  const SizedBox(width: 6),
-                  Flexible(child: Text('SMART FOOD FINDER', maxLines: 1, overflow: TextOverflow.ellipsis, style: text.labelSmall?.copyWith(color: c.gold, letterSpacing: 1.2))),
-                ]),
-                const SizedBox(height: 6),
-                Text('Tell us what you\'re craving', style: text.titleLarge?.copyWith(color: c.onForest)),
-                const SizedBox(height: 4),
-                Text('Your budget, taste and nutrition goals. We\'ll find a meal that fits.', style: text.bodyMedium?.copyWith(color: c.onForest.withValues(alpha: .85))),
-                const SizedBox(height: 12),
-                DecoratedBox(
-                  decoration: BoxDecoration(color: c.ivory, borderRadius: BorderRadius.circular(999)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Flexible(child: Text('Find My Food', maxLines: 1, overflow: TextOverflow.ellipsis, style: text.labelLarge?.copyWith(color: c.forest, fontWeight: FontWeight.w800))),
-                      const SizedBox(width: 6),
-                      Icon(Icons.arrow_forward, size: 16, color: c.forest),
-                    ]),
-                  ),
-                ),
+                Text('Find food with AI', style: text.titleSmall?.copyWith(color: c.forest, fontWeight: FontWeight.w800)),
+                Text('Search by budget, taste and nutrition', maxLines: 2, overflow: TextOverflow.ellipsis, style: text.bodySmall?.copyWith(color: c.muted)),
               ]),
             ),
-            // Decorative; dropped when space is tight (narrow phones, large text).
-            if (MediaQuery.sizeOf(context).width >= 360 && MediaQuery.textScalerOf(context).scale(10) <= 13) ...[
-              const SizedBox(width: 12),
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(color: c.gold.withValues(alpha: .22), shape: BoxShape.circle),
-                child: Icon(Icons.ramen_dining_outlined, size: 32, color: c.gold),
-              ),
-            ],
+            Icon(Icons.chevron_right, color: c.forest),
           ]),
         ),
       ),

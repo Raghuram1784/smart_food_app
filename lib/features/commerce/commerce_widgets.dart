@@ -358,6 +358,9 @@ class AddToCartButton extends ConsumerStatefulWidget {
 
   /// Inline button for cards (no top spacing, not stretched).
   final bool compact;
+
+  /// Start the add flow once when first shown ("add the first option" in the finder).
+  final bool autoStart;
   const AddToCartButton({
     super.key,
     required this.selection,
@@ -365,12 +368,19 @@ class AddToCartButton extends ConsumerStatefulWidget {
     this.itemName,
     this.beforeAdd,
     this.compact = false,
+    this.autoStart = false,
   });
   @override
   ConsumerState<AddToCartButton> createState() => _AddToCartButtonState();
 }
 
 class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoStart) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) add(); });
+  }
+
   bool busy = false;
   String? error;
   Future<void> add() async {

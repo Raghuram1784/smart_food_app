@@ -30,6 +30,11 @@ class FinderController extends Notifier<FinderState> {
     return const FinderState();
   }
 
+  final _autoAdded = <String>{};
+
+  /// True only the first time a selection message asks to add its dish (never re-adds on rebuild/scroll).
+  bool claimAutoAdd(String key) => _autoAdded.add(key);
+
   String? get area => ref.read(deliveryServiceAreaProvider)?.id ?? state.chosenAreaId;
 
   Future<void> send(String text, {bool isRetry = false}) async {

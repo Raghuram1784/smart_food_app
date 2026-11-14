@@ -90,13 +90,12 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Browse restaurants shows every catalog restaurant; View all lists them; no outdated copy', (tester) async {
+  testWidgets('Restaurants in your area: every catalog restaurant; View all lists them; no outdated copy', (tester) async {
     await _mount(tester);
-    final count = local.restaurants.length;
-    expect(find.text('Browse restaurants'), findsOneWidget);
-    expect(find.text('$count kitchens'), findsOneWidget);
+    expect(find.text('Restaurants in your area'), findsOneWidget);
+    expect(find.text('Add a delivery address to see who delivers to you'), findsOneWidget, reason: 'no address: no area claimed');
     expect(find.textContaining('Ordering is not yet available'), findsNothing);
-    await tester.tap(find.text('View all'));
+    await tester.tap(find.text('View all').first);
     await tester.pumpAndSettle();
     expect(find.text('All restaurants'), findsOneWidget);
     for (final r in local.restaurants) {

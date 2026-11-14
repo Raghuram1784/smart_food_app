@@ -288,7 +288,7 @@ void main() {
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(MaterialApp.router(theme: appTheme(Brightness.light), routerConfig: router));
-    expect(find.text('Find My Food'), findsOneWidget);
+    expect(find.text('Find food with AI'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('finder-entry')));
     await tester.pumpAndSettle();
     expect(find.text('Finder route'), findsOneWidget);

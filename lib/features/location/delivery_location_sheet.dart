@@ -156,8 +156,14 @@ class DeliveryLocationBar extends ConsumerWidget {
             ? 'Loading your addresses…'
             : address == null
                 ? 'Choose delivery address'
-                : destinationTitle(address);
-    final subtitle = address == null ? null : destinationSubtitle(address);
+                : _localityTitle(address) ?? destinationTitle(address);
+    // Header shows the locality cleanly; the full address stays in Cart/Checkout.
+    final city = (address?['city'] as String?)?.trim() ?? '';
+    final subtitle = address == null
+        ? null
+        : _localityTitle(address) != null
+            ? (city.isEmpty ? null : city.split(RegExp(r'\s+')).map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' '))
+            : destinationSubtitle(address);
     return InkWell(
       key: const ValueKey('deliver-to'),
       borderRadius: BorderRadius.circular(12),
@@ -282,4 +288,11 @@ class ServiceabilityBadge extends ConsumerWidget {
           ),
         ],
       );
+}
+
+/// "Kukatpally / KPHB" from a saved address's service locality, or null when it has none.
+String? _localityTitle(Map<String, dynamic> address) {
+  final name = (address['locality'] as Map?)?['name'];
+  if (name is! String || name.trim().isEmpty) return null;
+  return name.split(',').first.trim();
 }

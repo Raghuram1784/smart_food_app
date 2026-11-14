@@ -15,7 +15,8 @@ class RecommendationCard extends ConsumerWidget {
   final FinderRecommendation rec;
   final String? area;
   final int index;
-  const RecommendationCard({super.key, required this.rec, required this.area, required this.index});
+  final bool autoAdd;
+  const RecommendationCard({super.key, required this.rec, required this.area, required this.index, this.autoAdd = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -131,6 +132,7 @@ class RecommendationCard extends ConsumerWidget {
                   itemName: rec.name,
                   selection: rec.selection(area),
                   beforeAdd: () => _confirm(context, ref),
+                  autoStart: autoAdd,
                 ),
               ),
             ],
