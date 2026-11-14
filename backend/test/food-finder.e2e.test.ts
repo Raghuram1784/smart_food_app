@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import request from 'supertest';
+import { removeF1TestData } from './f1-test-data';
 
 /**
  * Smart Food Finder end-to-end, isolated test DB only. Every expected total is taken
@@ -202,7 +203,7 @@ test('Smart Food Finder: budget-accurate recommendations, conversation, AI failu
       const r = await ask({ message: `I want ${probe!.dish}`, area: probe!.zone });
       assert.ok(['NO_RESULTS', 'ALTERNATIVES_ONLY'].includes(r.result.status), 'never claims the dish is available');
       assert.equal(r.result.exact.length, 0);
-      assert.match(r.reply, /None of the restaurants delivering to your area serve/);
+      assert.match(r.reply, /No restaurant delivering to you serves/);
     });
 
     await t.test('conversations are private and expire gracefully', async () => {
@@ -287,10 +288,7 @@ test('Smart Food Finder: budget-accurate recommendations, conversation, AI failu
     // Test DB only: remove what this suite added so other suites keep their exact base fixtures.
     const ids = users.map((u) => u.id);
     await db.cart.deleteMany({ where: { customerId: { in: ids } } });
-    const added = (await db.menuItem.findMany({ where: { id: { startsWith: 'f1-' } }, select: { id: true } })).map((r: any) => r.id);
-    await db.menuItemNutrition.deleteMany({ where: { menuItemId: { in: added } } });
-    await db.menuItem.deleteMany({ where: { id: { in: added }, cartItems: { none: {} }, orderItems: { none: {} } } });
-    await db.menuItemProfile.deleteMany({});
+    await removeF1TestData(db);
     await app.close();
     await db.$disconnect();
   }

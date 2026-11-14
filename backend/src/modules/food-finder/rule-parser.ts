@@ -108,6 +108,11 @@ export function parseMessage(message: string): IntentUpdate {
   // Quantity ("2 plates", "for 3 people", "two biryanis").
   const qty = t.match(/\b(\d{1,2}|one|two|three|four|five|six|couple)\s*(?:x\s|plates?|portions?|servings?|orders?|packs?|people|persons?)\b|\bfor (\d{1,2}|two|three|four|five|six) (?:people|persons?)\b/);
   if (qty) { const q = qty[1] ?? qty[2]; u.quantity = WORD_NUM[q] ?? Number(q); t = t.replace(qty[0], ' '); }
+  else {
+    // "2 full mutton biryanis", "three masala dosas": a count directly before a dish (the dish words stay).
+    const q2 = t.match(/\b(\d{1,2}|two|three|four|five|six)\s+((?:full|regular|large|big|plates of)\s+)?(?=(?:[a-z]+\s+)?(?:biryanis?|dosas?|pizzas?|burgers?|thalis?|rolls?|bowls?|idlis?|samosas?|wraps?|momos|meals)\b)/);
+    if (q2 && Number(WORD_NUM[q2[1]] ?? q2[1]) <= 20) { u.quantity = WORD_NUM[q2[1]] ?? Number(q2[1]); t = t.replace(q2[0], ' '); }
+  }
 
   // Budget: currency-marked numbers, or a number after a budget word. Interpreted as the TOTAL payable.
   const money = t.match(/(?:₹|rs\.?|inr)\s*(\d{2,5})|(\d{2,5})\s*(?:₹|rs\b|rupees?|\/-|bucks)|(?:under|below|within|less than|upto|up to|for|around|budget(?: of| is)?|max(?:imum)?|increase (?:it|budget)? ?to|decrease (?:it|budget)? ?to|change (?:it|budget)? ?to|make it)\s*(\d{2,5})\b(?!\s*(?:g|grams|kcal|cal|calories|people|plates?|pcs|pieces))/);

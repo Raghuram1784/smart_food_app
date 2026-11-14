@@ -168,6 +168,15 @@ export function applyUpdate(prev: FinderIntent | null, u: IntentUpdate): FinderI
   if (base.minSpiceLevel !== null && base.maxSpiceLevel !== null && base.minSpiceLevel > base.maxSpiceLevel) {
     if (u.minSpiceLevel != null) base.maxSpiceLevel = null; else base.minSpiceLevel = null;
   }
+  // Diet vs dish conflict: whichever the customer said in THIS message wins, never "vegetarian chicken".
+  const meatDish = (base.mainIngredient && ['chicken', 'mutton', 'seafood', 'egg', 'meat'].includes(base.mainIngredient)) ||
+    /\b(chicken|mutton|egg|fish|prawn|keema|meat)\b/i.test(base.dishQuery ?? '');
+  if (base.vegetarian === true && meatDish) {
+    if (u.vegetarian === true) {
+      base.mainIngredient = null;
+      base.dishQuery = base.dishQuery?.replace(/\b(chicken|mutton|egg|fish|prawn|keema|meat)\b/gi, '').replace(/\s+/g, ' ').trim() || null;
+    } else base.vegetarian = null;
+  }
   return base;
 }
 

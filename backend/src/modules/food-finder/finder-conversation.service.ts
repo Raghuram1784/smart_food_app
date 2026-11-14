@@ -108,7 +108,7 @@ export class FinderConversationService {
         return { ...base, status: 'SELECTED' as const, intent: conv.intent, intentSummary: conv.intent ? describeIntent(conv.intent) : null,
           reply: selected.matchType === 'NEAR_BUDGET'
             ? `${selected.name} from ${selected.restaurantName} is ${rupee(selected.budgetDifferencePaise!)} above your budget. Add it anyway?`
-            : `Good choice — ${selected.name} from ${selected.restaurantName}. Tap Add to cart and I'll check the latest price.`,
+            : `Adding ${selected.name} from ${selected.restaurantName} to your cart — I'll check the latest price first.`,
           selected, requiresBudgetConfirmation: selected.matchType === 'NEAR_BUDGET', result: null };
       }
 

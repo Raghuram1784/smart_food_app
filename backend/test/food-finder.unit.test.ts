@@ -54,6 +54,13 @@ test('intent merge: multi-turn memory, explicit clears, vegetarian switch drops 
   assert.ok(!i.tastes.includes('spicy') && i.tastes.includes('mild')); assert.equal(i.maxSpiceLevel, 1); assert.equal(i.minSpiceLevel, null);
   i = applyUpdate(i, parseMessage('remove the spice preference'));
   assert.equal(i.maxSpiceLevel, null); assert.ok(!i.tastes.includes('mild'));
+  // A later explicit meat request replaces an earlier vegetarian preference (never "vegetarian chicken").
+  let v = applyUpdate(null, parseMessage('Find vegetarian meals with 25g protein under ₹250'));
+  assert.equal(v.vegetarian, true);
+  v = applyUpdate(v, parseMessage('I want Chicken Biryani under ₹300'));
+  assert.equal(v.vegetarian, null); assert.equal(v.mainIngredient, 'chicken'); assert.equal(v.dishQuery, 'chicken biryani');
+  v = applyUpdate(v, parseMessage('Make it vegetarian'));
+  assert.equal(v.vegetarian, true); assert.equal(v.mainIngredient, null); assert.equal(v.dishQuery, 'biryani'); assert.equal(v.budgetPaise, 30000, 'budget kept');
 });
 
 test('normalizeUpdate rejects unexpected fields and out-of-range values (model output is untrusted)', () => {

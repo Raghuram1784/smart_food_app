@@ -113,6 +113,8 @@ export class RecommendationEngine {
     const rq = intent.restaurantQuery?.toLowerCase().split(/\s+/).filter((w) => w.length >= 3) ?? [];
     let excludedForMissingNutrition = 0;
     let dishOnMenu = false; // the requested dish exists in this area at any price
+    let cheapestDishTotal: number | null = null; // lowest total for the requested dish, any budget
+    let bestProtein: number | null = null, lowestKcal: number | null = null; // closest real values when a nutrition limit excludes everything
     const scored: Recommendation[] = [];
 
     for (const item of items) {
@@ -128,8 +130,8 @@ export class RecommendationEngine {
       if (intent.maxSpiceLevel !== null && p.spiceLevel > intent.maxSpiceLevel) continue;
       const n = item.nutrition;
       if ((intent.minProteinG !== null || intent.maxCaloriesKcal !== null || intent.sort === 'protein') && !n) { excludedForMissingNutrition++; continue; }
-      if (intent.minProteinG !== null && Number(n!.proteinG) < intent.minProteinG) continue;
-      if (intent.maxCaloriesKcal !== null && n!.caloriesKcal > intent.maxCaloriesKcal) continue;
+      if (intent.minProteinG !== null && Number(n!.proteinG) < intent.minProteinG) { bestProtein = Math.max(bestProtein ?? 0, Number(n!.proteinG)); continue; }
+      if (intent.maxCaloriesKcal !== null && n!.caloriesKcal > intent.maxCaloriesKcal) { lowestKcal = Math.min(lowestKcal ?? Infinity, n!.caloriesKcal); continue; }
 
       // Relevance.
       const nameHay = `${item.name.toLowerCase()} ${p.synonyms.join(' ')}`;
@@ -156,6 +158,7 @@ export class RecommendationEngine {
       let quote: ReturnType<PricingService['price']>;
       try { quote = price(item); } catch { continue; } // unservable / unavailable variant: never shown
       const total = quote.finalPayablePaise;
+      if (exactDish && (cheapestDishTotal === null || total < cheapestDishTotal)) cheapestDishTotal = total;
       let matchType: MatchType | null;
       if (exactDish && (B === null || total <= B)) matchType = 'EXACT';
       else if (B !== null && total > B && total <= nearLimit! && fam >= 0.6) matchType = 'NEAR_BUDGET';
@@ -211,7 +214,7 @@ export class RecommendationEngine {
     return {
       status, area, budgetPaise: B, quantity: intent.quantity, nearBudgetLimitPaise: nearLimit,
       exact, nearBudget, similar, excludedForMissingNutrition,
-      summary: summarize(intent, status, { exact, nearBudget, similar }, excludedForMissingNutrition, dishOnMenu || !hasDish),
+      summary: summarize(intent, status, { exact, nearBudget, similar }, excludedForMissingNutrition, dishOnMenu || !hasDish, cheapestDishTotal, { bestProtein, lowestKcal }),
       notice: 'Synthetic demo restaurants with illustrative prices. Totals use the live pricing rules for your area and are re-quoted at cart and checkout. Nutrition values are estimates, not medical advice.',
     };
   }
@@ -229,24 +232,29 @@ export function describeIntent(i: FinderIntent) {
   return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 }
 
-function summarize(i: FinderIntent, status: ResultStatus, r: { exact: Recommendation[]; nearBudget: Recommendation[]; similar: Recommendation[] }, missingNutrition: number, dishOnMenu = true) {
+function summarize(i: FinderIntent, status: ResultStatus, r: { exact: Recommendation[]; nearBudget: Recommendation[]; similar: Recommendation[] }, missingNutrition: number, dishOnMenu = true, cheapestDishTotal: number | null = null, closest: { bestProtein: number | null; lowestKcal: number | null } = { bestProtein: null, lowestKcal: null }) {
   const what = describeIntent(i);
-  const budget = i.budgetPaise !== null ? ` within your ${rupees(i.budgetPaise)} total budget` : '';
-  const nutritionNote = missingNutrition ? ` ${missingNutrition} dish${missingNutrition === 1 ? ' was' : 'es were'} left out because we don't have nutrition data for ${missingNutrition === 1 ? 'it' : 'them'}.` : '';
+  const within = i.budgetPaise !== null ? ` within ${rupees(i.budgetPaise)} total` : '';
+  const nutritionNote = missingNutrition ? ` (${missingNutrition} dish${missingNutrition === 1 ? ' has' : 'es have'} no nutrition data, so I left ${missingNutrition === 1 ? 'it' : 'them'} out.)` : '';
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const near = r.nearBudget.length ? ` ${plural(r.nearBudget.length, 'option is', 'options are')} slightly above budget — I'll ask before adding.` : '';
   switch (status) {
     case 'EXACT_MATCHES': {
       const best = r.exact[0];
-      return `I found ${r.exact.length} option${r.exact.length === 1 ? '' : 's'} for ${what}${budget}. ${best.name} from ${best.restaurantName} comes to ${rupees(best.pricing.totalPaise)} in total, including delivery and fees.` +
-        (r.similar.length ? ` I've also added ${r.similar.length} similar choice${r.similar.length === 1 ? '' : 's'}.` : '') + nutritionNote;
+      return `Found ${plural(r.exact.length, 'match', 'matches')} for ${what}${within}. ${best.name} at ${best.restaurantName} comes to ${rupees(best.pricing.totalPaise)} including delivery and fees.` +
+        (r.similar.length ? ` Plus ${plural(r.similar.length, 'related dish', 'related dishes')}.` : '') + nutritionNote;
     }
     case 'ALTERNATIVES_ONLY':
-      return (!dishOnMenu && i.dishQuery ? `None of the restaurants delivering to your area serve ${i.dishQuery} right now.` : `Sorry, I couldn't find ${what}${budget}.`) +
-        ` Here ${r.similar.length === 1 ? 'is a similar dish' : `are ${r.similar.length} similar dishes`} that ${r.similar.length === 1 ? 'fits' : 'fit'}` +
-        (r.nearBudget.length ? `, plus ${r.nearBudget.length} option${r.nearBudget.length === 1 ? '' : 's'} slightly above your budget.` : '.') + nutritionNote;
+      return (!dishOnMenu && i.dishQuery
+        ? `No restaurant delivering to you serves ${i.dishQuery} right now, but I found ${plural(r.similar.length, 'related dish', 'related dishes')} you may like.`
+        : `I couldn't find ${what}${within}, but I found ${plural(r.similar.length, 'related dish', 'related dishes')} that fit your taste and budget.`) + near + nutritionNote;
     case 'OVER_BUDGET_ONLY':
-      return `Nothing matching ${what} fits${budget}. The closest options are a little above it — I won't add any of them unless you confirm.` + nutritionNote;
+      return `Nothing for ${what} fits${within}.${near}` + nutritionNote;
     default:
-      if (!dishOnMenu && i.dishQuery) return `None of the restaurants delivering to your area serve ${i.dishQuery} right now. Try a different dish, or ask for something similar.` + nutritionNote;
-      return `Sorry, I couldn't find ${what}${budget} from restaurants delivering to your area. Try a higher budget, a different dish or fewer filters.` + nutritionNote;
+      if (!dishOnMenu && i.dishQuery) return `No restaurant delivering to you serves ${i.dishQuery} right now. Try a different dish or ask for something similar.` + nutritionNote;
+      if (cheapestDishTotal !== null && i.budgetPaise !== null) return `I couldn't find ${what}${within}. The lowest total near you is ${rupees(cheapestDishTotal)} — try a higher budget, a smaller portion or fewer items.` + nutritionNote;
+      if (i.minProteinG !== null && closest.bestProtein !== null) return `I couldn't find ${what}${within} nearby. The highest-protein match near you has about ${closest.bestProtein} g — try asking for ${Math.floor(closest.bestProtein / 5) * 5} g protein.` + nutritionNote;
+      if (i.maxCaloriesKcal !== null && closest.lowestKcal !== null) return `I couldn't find ${what}${within} nearby. The lightest match near you is about ${closest.lowestKcal} kcal.` + nutritionNote;
+      return `I couldn't find ${what}${within} nearby. Try a higher budget, a different dish or fewer filters.` + nutritionNote;
   }
 }
