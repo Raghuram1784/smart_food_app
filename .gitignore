@@ -61,3 +61,6 @@ backend/database/*.local.sql
 
 # Local development DB backups (may contain synthetic order/address data) — never commit
 backend/.local-backups/
+
+# Locally generated UI render evidence (regenerate with test_render/finder_render_test.dart)
+test_render/out/
