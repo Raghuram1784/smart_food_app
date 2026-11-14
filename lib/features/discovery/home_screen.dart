@@ -11,6 +11,7 @@ import '../location/delivery_destination.dart';
 import '../location/delivery_location_sheet.dart';
 import 'home_widgets.dart';
 import 'promo_carousel.dart';
+import '../finder/finder_screen.dart';
 
 /// Customer Home. Opens immediately with no location or address prompt.
 /// Every section is built from backend catalog data (restaurants, dishes,
@@ -140,6 +141,7 @@ class _HomeBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Padding(padding: EdgeInsets.fromLTRB(20, 4, 20, 12), child: FinderEntryCard()),
         PromoCarousel(slides: _slides(catalog.restaurants)),
         const Padding(padding: EdgeInsets.fromLTRB(20, 4, 20, 0), child: SectionTitle('What are you craving?')),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: HomeCategories(catalog.categories)),
