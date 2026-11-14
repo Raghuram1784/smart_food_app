@@ -12,11 +12,21 @@ class LiveOrderUpdate {
   final String connection;
   final String? orderId;
   final bool reconcile;
+
+  /// Server event type (e.g. RIDER_ASSIGNED, HANDOVER_ISSUED_2). Never carries a PIN.
+  final String? eventType;
+
+  /// The rider's invitations changed; re-read them from the API.
+  final bool offersChanged;
   const LiveOrderUpdate(
     this.connection, {
     this.orderId,
     this.reconcile = false,
+    this.eventType,
+    this.offersChanged = false,
   });
+
+  bool get isHandoverIssued => eventType?.startsWith('HANDOVER_ISSUED') ?? false;
 }
 
 class EventVersions {
@@ -96,15 +106,37 @@ final liveOrdersProvider = StreamProvider<LiveOrderUpdate>((ref) {
   socket.on('reconnect_attempt', (_) {
     emit(const LiveOrderUpdate('Reconnecting live updates…'));
   });
+  final seenEvents = <String>{};
   socket.on('order.updated', (dynamic raw) {
     if (raw is Map) {
       final event = Json.from(raw);
-      if (versions.accept(event)) {
+      final type = event['eventType'] as String?;
+      // OTP issuance / arrival do not change the order version; de-duplicate
+      // them by event id instead of dropping them as "not newer".
+      final versionless = type != null &&
+          (type.startsWith('HANDOVER_ISSUED') || type == 'RIDER_ARRIVED');
+      final fresh = versionless
+          ? (event['eventId'] is String && seenEvents.add(event['eventId'] as String))
+          : versions.accept(event);
+      if (fresh) {
         emit(
-          LiveOrderUpdate('Live updates connected', orderId: event['orderId']),
+          LiveOrderUpdate(
+            'Live updates connected',
+            orderId: event['orderId'] as String?,
+            eventType: type,
+          ),
         );
       }
     }
+  });
+  socket.on('delivery.offers', (dynamic raw) {
+    emit(
+      LiveOrderUpdate(
+        'Live updates connected',
+        orderId: raw is Map ? raw['orderId'] as String? : null,
+        offersChanged: true,
+      ),
+    );
   });
   final lifecycle = _Lifecycle((state) {
     if (state == AppLifecycleState.resumed) {
@@ -272,8 +304,9 @@ String eventLabel(String value) =>
       'PREPARATION_STARTED': 'Kitchen preparing',
       'ORDER_READY': 'Ready for pickup',
       'RIDER_ASSIGNED': 'Delivery partner assigned',
+      'RIDER_ARRIVED': 'Delivery partner arrived',
       'ORDER_PICKED_UP': 'Picked up',
       'OUT_FOR_DELIVERY': 'Out for delivery',
       'ORDER_DELIVERED': 'Delivered',
     }[value] ??
-    'Order updated';
+    (value.startsWith('HANDOVER_ISSUED') ? 'Delivery OTP issued' : 'Order updated');

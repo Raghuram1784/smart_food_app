@@ -26,7 +26,7 @@ class OwnerDashboardScreen extends ConsumerStatefulWidget {
 class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
   String? _selectedRestaurantId;
   late String _activeTab;
-  final int _page = 1;
+  int _page = 1;
 
   @override
   void initState() {
@@ -42,7 +42,10 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
       setState(() => _activeTab = widget.initialTab);
     }
     if (widget.restaurantId != oldWidget.restaurantId) {
-      setState(() => _selectedRestaurantId = widget.restaurantId);
+      setState(() {
+        _selectedRestaurantId = widget.restaurantId;
+        _page = 1;
+      });
     }
   }
 
@@ -98,7 +101,7 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
       orElse: () => restaurants.first,
     );
 
-    final path = 'operations/restaurant/orders?page=$_page';
+    final path = 'restaurants/$activeRestaurantId/orders?page=$_page&limit=20';
 
     return Scaffold(
       appBar: AppBar(
@@ -124,7 +127,10 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
             PopupMenuButton<String>(
               tooltip: 'Switch kitchen',
               icon: const Icon(Icons.storefront_outlined),
-              onSelected: (id) => setState(() => _selectedRestaurantId = id),
+              onSelected: (id) => setState(() {
+                _selectedRestaurantId = id;
+                _page = 1;
+              }),
               itemBuilder: (context) => [
                 for (final r in restaurants)
                   PopupMenuItem(
@@ -161,13 +167,11 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
               final allOrders = (raw['items'] as List)
                   .cast<Map>()
                   .map((m) => Json.from(m))
-                  .where(
-                    (o) =>
-                        // If multiple restaurants exist, filter to active one
-                        restaurants.length <= 1 ||
-                        o['restaurantId'] == activeRestaurantId,
-                  )
                   .toList();
+              final totalCount = raw['total'] as int? ?? allOrders.length;
+              final serverPendingCount =
+                  raw['pendingCount'] as int? ??
+                  allOrders.where((o) => o['status'] == 'PENDING_RESTAURANT').length;
 
               final newOrders = allOrders
                   .where((o) => o['status'] == 'PENDING_RESTAURANT')
@@ -217,7 +221,7 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                     // Metrics Banner
                     _KitchenMetricsBanner(
                       restaurantName: activeRestaurant.name,
-                      pendingCount: newOrders.length,
+                      pendingCount: serverPendingCount,
                       inKitchenCount: kitchenOrders.length,
                       historyCount: historyOrders.length,
                       activeTab: _activeTab,
@@ -231,15 +235,15 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                       child: Row(
                         children: [
                           _FilterPill(
-                            label: 'All (${allOrders.length})',
+                            label: 'All ($totalCount)',
                             selected: _activeTab == 'all',
                             onTap: () => setState(() => _activeTab = 'all'),
                           ),
                           const SizedBox(width: 8),
                           _FilterPill(
-                            label: 'New (${newOrders.length})',
+                            label: 'New ($serverPendingCount)',
                             selected: _activeTab == 'new',
-                            badgeColor: newOrders.isNotEmpty
+                            badgeColor: serverPendingCount > 0
                                 ? Colors.amber[800]
                                 : null,
                             onTap: () => setState(() => _activeTab = 'new'),
@@ -307,6 +311,33 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                         ),
                         const SizedBox(height: 10),
                       ],
+
+                    if (totalCount > 20 || _page > 1) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton.icon(
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Previous'),
+                            onPressed: _page > 1
+                                ? () => setState(() => _page--)
+                                : null,
+                          ),
+                          Text(
+                            'Page $_page of ${(totalCount / 20).ceil().clamp(1, 9999)}',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          TextButton.icon(
+                            label: const Text('Next'),
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: _page * 20 < totalCount
+                                ? () => setState(() => _page++)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               );

@@ -13,6 +13,7 @@ const actionLabels = {
   'ready': 'Mark ready',
   'pickup': 'Confirm pickup',
   'out-for-delivery': 'Out for delivery',
+  'arrived': "I've Arrived",
   'complete-handover': 'Confirm delivery (PIN)',
   'deliver': 'Confirm delivered',
 };
@@ -216,7 +217,7 @@ class _OperationCardState extends ConsumerState<OperationCard> {
       error = null;
     });
     try {
-      await ref.read(commerceRepositoryProvider).request(
+      final result = await ref.read(commerceRepositoryProvider).request(
         'POST',
         'operations/${widget.scope}/orders/${widget.order['id']}/$action',
         {
@@ -225,6 +226,20 @@ class _OperationCardState extends ConsumerState<OperationCard> {
           'riderId': ?riderId,
         },
       );
+      if (action == 'arrived' && mounted) {
+        final reissued = result is Map && result['reissued'] == true;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                reissued
+                    ? "The previous code expired. A new OTP was sent to the customer's app — ask them for it."
+                    : 'Ask the customer for the 6-digit OTP shown in their app.',
+              ),
+            ),
+          );
+      }
       if (mounted) widget.onChanged();
     } catch (e) {
       if (mounted) setState(() => error = commerceError(e));
