@@ -21,6 +21,8 @@ import 'features/operations/owner_dashboard_screen.dart';
 import 'features/operations/rider_dashboard_screen.dart';
 import 'features/restaurant/restaurant_screen.dart';
 import 'features/finder/finder_screen.dart';
+import 'features/group/group_screens.dart';
+import 'features/group/owner_group_proposals_screen.dart';
 
 GoRouter createRouter([WidgetRef? ref]) => GoRouter(
   initialLocation: '/',
@@ -100,6 +102,17 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
       ],
     ),
     // Full screen routes pushed over shell:
+    GoRoute(path: '/groups', builder: (context, state) => const CommerceGate(child: GroupHubScreen())),
+    GoRoute(
+      path: '/groups/:id',
+      builder: (context, state) => CommerceGate(child: GroupRoomScreen(groupId: state.pathParameters['id']!, showInvite: state.uri.queryParameters['invite'] == '1')),
+    ),
+    // Shareable invite link: <APP_LINK_BASE>/group/<token> (sign-in first, then join).
+    GoRoute(path: '/group/:token', builder: (context, state) => CommerceGate(child: GroupJoinLinkScreen(token: state.pathParameters['token']!))),
+    GoRoute(
+      path: '/owner/group-proposals',
+      builder: (context, state) => CommerceGate(role: 'RESTAURANT_OWNER', child: OwnerGroupProposalsScreen(restaurantId: state.uri.queryParameters['restaurantId'])),
+    ),
     GoRoute(
       path: '/finder',
       builder: (context, state) => CommerceGate(child: FinderScreen(initialPrompt: state.uri.queryParameters['q'])),

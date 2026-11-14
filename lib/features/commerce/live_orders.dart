@@ -18,12 +18,20 @@ class LiveOrderUpdate {
 
   /// The rider's invitations changed; re-read them from the API.
   final bool offersChanged;
+
+  /// A group order changed (members, cart, proposal); re-read it from the API.
+  final String? groupId;
+
+  /// Restaurant: group price requests changed for one of your outlets.
+  final bool groupProposalsChanged;
   const LiveOrderUpdate(
     this.connection, {
     this.orderId,
     this.reconcile = false,
     this.eventType,
     this.offersChanged = false,
+    this.groupId,
+    this.groupProposalsChanged = false,
   });
 
   bool get isHandoverIssued => eventType?.startsWith('HANDOVER_ISSUED') ?? false;
@@ -128,6 +136,12 @@ final liveOrdersProvider = StreamProvider<LiveOrderUpdate>((ref) {
         );
       }
     }
+  });
+  socket.on('group.updated', (dynamic raw) {
+    emit(LiveOrderUpdate('Live updates connected', groupId: raw is Map ? raw['groupId'] as String? : null, eventType: raw is Map ? raw['event'] as String? : null));
+  });
+  socket.on('group.proposals', (dynamic raw) {
+    emit(LiveOrderUpdate('Live updates connected', groupId: raw is Map ? raw['groupId'] as String? : null, eventType: raw is Map ? raw['event'] as String? : null, groupProposalsChanged: true));
   });
   socket.on('delivery.offers', (dynamic raw) {
     emit(

@@ -9,6 +9,8 @@ import '../catalog/diet_preference.dart';
 import '../location/delivery_location_sheet.dart';
 import '../../shared/components.dart';
 import '../commerce/commerce_widgets.dart';
+import '../commerce/commerce_repository.dart' show customerIdProvider;
+import '../group/group_screens.dart' show startGroupOrder;
 
 class RestaurantScreen extends ConsumerWidget {
   final String id;
@@ -118,6 +120,14 @@ class RestaurantScreen extends ConsumerWidget {
                   ],
                   const SizedBox(height: 14),
                   ServiceabilityBadge(restaurant.id, showReason: true),
+                  const SizedBox(height: 10),
+                  if (ref.watch(customerIdProvider) != null)
+                    OutlinedButton.icon(
+                      key: const ValueKey('start-group-order'),
+                      onPressed: () => startGroupOrder(context, ref, restaurantId: restaurant.id, restaurantName: restaurant.name),
+                      icon: const Icon(Icons.groups_2_outlined),
+                      label: const Text('Start a group order'),
+                    ),
                   const SizedBox(height: 14),
                   Wrap(
                     spacing: 12,

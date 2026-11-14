@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design.dart';
@@ -123,6 +124,12 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            key: const ValueKey('owner-group-proposals'),
+            tooltip: 'Group proposals',
+            onPressed: () => context.push('/owner/group-proposals?restaurantId=$activeRestaurantId'),
+            icon: const Icon(Icons.handshake_outlined),
+          ),
           if (restaurants.length > 1)
             PopupMenuButton<String>(
               tooltip: 'Switch kitchen',

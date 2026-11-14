@@ -5,6 +5,8 @@ import { demoAllowed } from '../src/modules/auth/session.service';
 import { RoleName } from '../src/generated/prisma/client';
 export const demoAccounts: {email:string;role:RoleName;displayName:string;env:string}[]=[
   {email:'customer@demo.test',role:'CUSTOMER',displayName:'Demo Customer',env:'DEMO_CUSTOMER_PASSWORD'},
+  // Second demo customer for group-order testing (same local demo password).
+  {email:'friend@demo.test',role:'CUSTOMER',displayName:'Demo Friend',env:'DEMO_CUSTOMER_PASSWORD'},
   {email:'restaurant@demo.test',role:'RESTAURANT_OWNER',displayName:'Demo Restaurant Owner',env:'DEMO_RESTAURANT_PASSWORD'},
   {email:'rider@demo.test',role:'DELIVERY_PARTNER',displayName:'Demo Delivery Partner',env:'DEMO_RIDER_PASSWORD'},
   {email:'admin@demo.test',role:'ADMIN',displayName:'Demo Administrator',env:'DEMO_ADMIN_PASSWORD'},

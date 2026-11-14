@@ -86,6 +86,11 @@ model Restaurant {
   @@index([operatingStatus, displayOrder, id])
   @@index([localityId, operatingStatus, displayOrder, id])
   @@index([brandId])
+  groupNegotiationEnabled     Boolean                  @default(true)
+  maxGroupDiscountBps         Int                      @default(3000)
+  ecoPackagingEnabled         Boolean                  @default(false)
+  groupOrders                 GroupOrder[]
+  groupProposals              GroupProposal[]
 }
 
 model Category {
@@ -165,6 +170,7 @@ model MenuItem {
   @@index([restaurantId, availabilityStatus, displayOrder, id])
   @@index([categoryId, availabilityStatus, basePricePaise])
   @@index([sectionId, restaurantId])
+  groupCartItems        GroupCartItem[]
 }
 
 model MenuItemVariant {
@@ -297,6 +303,8 @@ model User {
   sessions            AuthSession[]
   riderPresence       RiderPresence?
   deliveryOffers      DeliveryOffer[]
+  groupsOrganized GroupOrder[]
+  groupMemberships GroupMember[]
 }
 
 model Role {
@@ -436,6 +444,7 @@ model CustomerAddress {
   locality      Locality? @relation(fields: [localityId], references: [id], onDelete: Restrict)
 
   @@index([customerId, createdAt])
+  groupOrders GroupOrder[]
 }
 
 enum AddressLocationSource {
@@ -502,6 +511,10 @@ model Order {
   @@unique([cartId, cartVersion])
   @@index([customerId, createdAt, id])
   @@index([restaurantId, createdAt, id])
+  negotiatedDiscountPaise Int                 @default(0)
+  groupProposalId         String?             @unique @db.Uuid
+  groupOrder              GroupOrder?
+  groupProposal           GroupProposal?
 }
 
 enum PaymentAttemptStatus {
@@ -761,4 +774,137 @@ model RestaurantBrand {
   createdAt DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt DateTime     @updatedAt @db.Timestamptz(3)
   outlets   Restaurant[]
+}
+
+enum GroupOrderStatus {
+  OPEN
+  LOCKED
+  PROPOSED
+  COUNTERED
+  ACCEPTED
+  REJECTED
+  ORDERED
+  CANCELED
+  EXPIRED
+}
+
+enum GroupMemberStatus {
+  ACTIVE
+  LEFT
+}
+
+enum GroupProposalStatus {
+  PENDING
+  ACCEPTED
+  COUNTERED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+  DECLINED
+  USED
+}
+
+/// F2: a shared group order for one restaurant outlet; the organizer pays the final order.
+model GroupOrder {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizerId      String           @db.Uuid
+  restaurantId     String           @db.VarChar(64)
+  addressId        String           @db.Uuid
+  localityId       String           @db.VarChar(64)
+  name             String?          @db.VarChar(80)
+  status           GroupOrderStatus @default(OPEN)
+  version          Int              @default(1)
+  cartRevision     Int              @default(1)
+  inviteTokenHash  String           @unique @db.Char(64)
+  joinCodeHash     String           @unique @db.Char(64)
+  expiresAt        DateTime         @db.Timestamptz(3)
+  proposalAttempts Int              @default(0)
+  orderId          String?          @unique @db.Uuid
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+  organizer        User             @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  address          CustomerAddress  @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  order            Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  members          GroupMember[]
+  items            GroupCartItem[]
+  proposals        GroupProposal[]
+
+  @@index([organizerId, createdAt])
+  @@index([restaurantId, status])
+}
+
+model GroupMember {
+  groupId     String            @db.Uuid
+  userId      String            @db.Uuid
+  displayName String            @db.VarChar(80)
+  isOrganizer Boolean           @default(false)
+  status      GroupMemberStatus @default(ACTIVE)
+  joinedAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  group       GroupOrder        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items       GroupCartItem[]
+
+  @@id([groupId, userId])
+  @@index([userId])
+}
+
+model GroupCartItem {
+  id             String      @id @default(uuid()) @db.Uuid
+  groupId        String      @db.Uuid
+  memberId       String      @db.Uuid
+  restaurantId   String      @db.VarChar(64)
+  menuItemId     String      @db.VarChar(64)
+  variantId      String?     @db.Uuid
+  addOnIds       String[]    @default([]) @db.Uuid
+  selectionKey   String      @db.Char(64)
+  quantity       Int
+  unitPricePaise Int
+  version        Int         @default(1)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
+  group          GroupOrder  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member         GroupMember @relation(fields: [groupId, memberId], references: [groupId, userId], onDelete: Cascade, map: "GroupCartItem_member_fkey")
+  menuItem       MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, memberId, selectionKey])
+  @@index([groupId])
+}
+
+model GroupProposal {
+  id                      String              @id @default(uuid()) @db.Uuid
+  groupId                 String              @db.Uuid
+  restaurantId            String              @db.VarChar(64)
+  cartRevision            Int
+  memberCount             Int
+  itemsSnapshot           Json
+  itemSubtotalPaise       Int
+  customizationTotalPaise Int
+  packagingPaise          Int
+  deliveryPaise           Int
+  platformPaise           Int
+  discountPaise           Int
+  taxPaise                Int
+  normalTotalPaise        Int
+  proposedTotalPaise      Int
+  minAllowedTotalPaise    Int
+  counterTotalPaise       Int?
+  agreedTotalPaise        Int?
+  pricingFingerprint      String              @db.Char(64)
+  status                  GroupProposalStatus @default(PENDING)
+  responseExpiresAt       DateTime            @db.Timestamptz(3)
+  offerExpiresAt          DateTime?           @db.Timestamptz(3)
+  respondedById           String?             @db.Uuid
+  respondedAt             DateTime?           @db.Timestamptz(3)
+  responseNote            String?             @db.VarChar(300)
+  orderId                 String?             @unique @db.Uuid
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
+  group                   GroupOrder          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  restaurant              Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  order                   Order?              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, status, createdAt])
+  @@index([groupId, createdAt])
 }

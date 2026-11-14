@@ -34,5 +34,5 @@ class OperationsController {
   @Get('dispatch/riders') @Roles('ADMIN') riders(@CurrentUser() p:AuthenticatedPrincipal){return this.service.riders(p);}
   @Post('dispatch/orders/:id/assign') @HttpCode(200) @Roles('ADMIN') assign(@CurrentUser() p:AuthenticatedPrincipal,@Param() q:UuidParam,@Body() b:AssignmentInput){return this.service.mutate(p,q.id,'assign',b.expectedVersion,undefined,b.riderId);}
 }
-@Module({imports:[AuthModule],controllers:[CustomerHandoverController,OperationsController,RiderPresenceController],providers:[HandoverService,HandoverRateGuard,OperationsService,OrderGateway,OutboxDispatcher,RiderPresenceService,DispatchService],exports:[RiderPresenceService]})
+@Module({imports:[AuthModule],controllers:[CustomerHandoverController,OperationsController,RiderPresenceController],providers:[HandoverService,HandoverRateGuard,OperationsService,OrderGateway,OutboxDispatcher,RiderPresenceService,DispatchService],exports:[RiderPresenceService,OrderGateway]})
 export class OperationsModule{}
