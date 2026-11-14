@@ -248,11 +248,19 @@ class _Chip extends StatelessWidget {
       );
 }
 
-class _PriceBreakdown extends StatelessWidget {
+/// Menu price, a one-line fee summary that expands into the server breakdown, and the total payable.
+class _PriceBreakdown extends StatefulWidget {
   final FinderRecommendation rec;
   const _PriceBreakdown({required this.rec});
   @override
+  State<_PriceBreakdown> createState() => _PriceBreakdownState();
+}
+
+class _PriceBreakdownState extends State<_PriceBreakdown> {
+  bool expanded = false;
+  @override
   Widget build(BuildContext context) {
+    final rec = widget.rec;
     final c = FinderColors.of(context);
     final text = Theme.of(context).textTheme;
     Widget row(String label, String value, {TextStyle? style, Key? key}) => Padding(
@@ -269,12 +277,27 @@ class _PriceBreakdown extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Column(children: [
-          row(rec.quantity > 1 ? 'Food (${rec.quantity} items)' : 'Food price', rupees(rec.foodPaise)),
-          if (rec.discountPaise > 0) row('Discount', '−${rupees(rec.discountPaise)}'),
-          if (rec.packagingPaise > 0) row('Packaging', rupees(rec.packagingPaise)),
-          row('Delivery fee', rupees(rec.deliveryPaise)),
-          if (rec.platformPaise > 0) row('Platform fee', rupees(rec.platformPaise)),
-          if (rec.taxPaise > 0) row('Taxes', rupees(rec.taxPaise)),
+          row(rec.quantity > 1 ? 'Menu price (${rec.quantity} items)' : 'Menu price', rupees(rec.foodPaise)),
+          InkWell(
+            key: const ValueKey('finder-fees-toggle'),
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => expanded = !expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1.5),
+              child: Row(children: [
+                Expanded(child: Text(expanded ? 'Fees and taxes' : 'Delivery, fees and taxes', style: text.bodyMedium?.copyWith(color: c.muted))),
+                Text(rupees(rec.totalPaise - rec.foodPaise), style: text.bodyMedium?.copyWith(color: c.charcoal)),
+                Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 18, color: c.muted),
+              ]),
+            ),
+          ),
+          if (expanded) ...[
+            if (rec.discountPaise > 0) row('  Discount', '−${rupees(rec.discountPaise)}'),
+            if (rec.packagingPaise > 0) row('  Packaging', rupees(rec.packagingPaise)),
+            row('  Delivery fee', rupees(rec.deliveryPaise)),
+            if (rec.platformPaise > 0) row('  Platform fee', rupees(rec.platformPaise)),
+            row('  Taxes', rec.taxPaise > 0 ? rupees(rec.taxPaise) : 'None configured'),
+          ],
           Divider(height: 12, color: c.outline),
           row('Total payable', rupees(rec.totalPaise),
               key: const ValueKey('finder-total'), style: text.titleMedium?.copyWith(color: totalColor, fontWeight: FontWeight.w800)),

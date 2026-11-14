@@ -186,19 +186,29 @@ class _HomeBody extends ConsumerWidget {
     restaurants.sort((a, b) => rank(b) - rank(a));
     final dishes = catalog.dishes.where((d) => d.availabilityStatus == 'AVAILABLE').toList();
     bool isMain(Dish d) => !const {'beverages', 'desserts', 'bakery'}.contains(d.categoryId);
-    List<Dish> onePerKitchen(Iterable<Dish> list, {Set<String> skip = const {}}) {
-      final seen = <String>{};
-      return [for (final d in list) if (!skip.contains(d.id) && seen.add(d.restaurantId)) d].take(10).toList();
+    // No dish name appears twice on Home (outlets of one brand share a menu).
+    final shownNames = <String>{};
+    List<Dish> pick(Iterable<Dish> list, {bool onePerKitchen = true, int max = 10}) {
+      final kitchens = <String>{};
+      final out = <Dish>[];
+      for (final d in list) {
+        if (out.length >= max) break;
+        final name = d.name.toLowerCase();
+        if (shownNames.contains(name) || (onePerKitchen && !kitchens.add(d.restaurantId))) continue;
+        shownNames.add(name);
+        out.add(d);
+      }
+      return out;
     }
 
     const mains = ['biryani', 'meals', 'paneer', 'kebabs', 'indo-chinese', 'telangana-andhra', 'pizza', 'burgers', 'bowls', 'dosa'];
-    final popular = onePerKitchen(dishes.where((d) => mains.contains(d.categoryId)));
-    final recommended = onePerKitchen(dishes.where((d) => isMain(d) && d.nutrition != null && d.pricePaise <= 30000), skip: {for (final d in popular) d.id});
-    final affordable = (dishes.where((d) => isMain(d) && d.pricePaise <= 15000).toList()..sort((a, b) => a.pricePaise.compareTo(b.pricePaise))).take(12).toList();
-    final protein = (dishes.where((d) => (d.nutrition?.proteinG ?? 0) >= 20).toList()
-          ..sort((a, b) => b.nutrition!.proteinG.compareTo(a.nutrition!.proteinG)))
-        .take(12)
-        .toList();
+    final popular = pick(dishes.where((d) => mains.contains(d.categoryId)));
+    final recommended = pick(dishes.where((d) => isMain(d) && d.nutrition != null && d.pricePaise <= 30000));
+    final affordable = pick(dishes.where((d) => isMain(d) && d.pricePaise <= 15000).toList()..sort((a, b) => a.pricePaise.compareTo(b.pricePaise)), onePerKitchen: false, max: 12);
+    final protein = pick(
+        dishes.where((d) => (d.nutrition?.proteinG ?? 0) >= 20).toList()..sort((a, b) => b.nutrition!.proteinG.compareTo(a.nutrition!.proteinG)),
+        onePerKitchen: false,
+        max: 12);
     final diet = ref.watch(dietPreferenceProvider);
     final t = MediaQuery.textScalerOf(context).scale(14) / 14;
     final areaName = area?.name.split(',').first;
@@ -425,7 +435,10 @@ class DishCard extends StatelessWidget {
                     Text(d.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(color: c.charcoal, fontWeight: FontWeight.w700)),
                     Text(d.restaurantName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: c.muted)),
                     const SizedBox(height: 4),
-                    Text('₹${d.displayPrice}', style: theme.textTheme.labelLarge?.copyWith(color: c.forest, fontWeight: FontWeight.w800)),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(text: '₹${d.displayPrice}', style: theme.textTheme.labelLarge?.copyWith(color: c.forest, fontWeight: FontWeight.w800)),
+                      TextSpan(text: '  menu price', style: theme.textTheme.labelSmall?.copyWith(color: c.muted)),
+                    ]), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     NutritionLine(d.nutrition, dense: true),
                   ],

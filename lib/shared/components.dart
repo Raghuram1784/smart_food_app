@@ -167,7 +167,7 @@ class RestaurantCard extends StatelessWidget {
                         Text(
                           from == null
                               ? 'Menu coming soon'
-                              : 'From ₹${formatPaise(from)} · sample',
+                              : 'Menu from ₹${formatPaise(from)}',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: theme.colorScheme.primary,
                           ),
@@ -220,7 +220,7 @@ class DishTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '₹${dish.displayPrice} · sample',
+                        '₹${dish.displayPrice} menu price',
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: theme.colorScheme.primary,
                         ),
@@ -394,7 +394,7 @@ Widget _dishContents(BuildContext context, Dish dish) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: Text(
-                    '₹${dish.displayPrice} · sample menu price before fees',
+                    '₹${dish.displayPrice} menu price · delivery and fees added at checkout',
                     style: theme.textTheme.titleMedium,
                   ),
                 );

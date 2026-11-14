@@ -133,6 +133,7 @@ Future<void> _ask(WidgetTester tester, String text) async {
 }
 
 void main() {
+  _registerFeeToggle();
   testWidgets('welcome state, starter prompt, exact and near-budget sections with server totals', (tester) async {
     final repo = FinderFake();
     await _mount(tester, repo);
@@ -292,5 +293,22 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('finder-entry')));
     await tester.pumpAndSettle();
     expect(find.text('Finder route'), findsOneWidget);
+  });
+}
+
+void _registerFeeToggle() {
+  testWidgets('fee breakdown: menu price and total always visible; fee details expand on tap', (tester) async {
+    final repo = FinderFake()..replies.add((_) => results(exact: [rec(nutrition: _n, total: 14400)], near: []));
+    await _mount(tester, repo);
+    await _ask(tester, 'chicken biryani under ₹150');
+    expect(find.text('Menu price'), findsOneWidget);
+    expect(find.text('₹144'), findsOneWidget, reason: 'total payable always shown');
+    expect(find.text('₹35'), findsOneWidget, reason: 'fees summarised in one line');
+    expect(find.textContaining('Packaging'), findsNothing, reason: 'collapsed by default');
+    await tester.tap(find.byKey(const ValueKey('finder-fees-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Packaging'), findsOneWidget);
+    expect(find.textContaining('Delivery fee'), findsOneWidget);
+    expect(find.text('None configured'), findsOneWidget, reason: 'no invented tax');
   });
 }

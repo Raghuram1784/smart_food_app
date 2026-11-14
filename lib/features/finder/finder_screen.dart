@@ -384,7 +384,7 @@ class _AssistantTurn extends ConsumerWidget {
         ...cards(r.nearBudget),
       ],
       // No separate empty-state card: the reply already explains, and refinement chips follow.
-      if (r.notice.isNotEmpty)
+      if (r.notice.isNotEmpty && isLatest) // shown once, under the latest answer
         Padding(
           padding: const EdgeInsets.only(top: 10, left: 4, right: 4),
           child: Text(r.notice, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted)),
