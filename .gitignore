@@ -58,3 +58,6 @@ backend/src/generated/
 backend/coverage/
 backend/database/*.local.sql
 
+
+# Local development DB backups (may contain synthetic order/address data) — never commit
+backend/.local-backups/

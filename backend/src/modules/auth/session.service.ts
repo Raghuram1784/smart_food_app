@@ -34,6 +34,8 @@ export class SessionService extends SessionVerifier {
       // Same per-user row lock as login: logout-all has a well-defined ordering against issuance.
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${principal.userId}::uuid FOR UPDATE`;
       await tx.authSession.updateMany({where:{userId:principal.userId,...(!all?{id:principal.sessionId}:{}),revokedAt:null},data:{revokedAt:new Date()}});
+      // A signed-out rider must never stay dispatchable on a stale presence row.
+      await tx.riderPresence.updateMany({where:{userId:principal.userId,isOnline:true},data:{isOnline:false,lastOfflineAt:new Date()}});
     });
     return {revoked:true};
   }

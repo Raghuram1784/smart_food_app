@@ -7,6 +7,8 @@ import '../catalog/catalog.dart';
 import '../../shared/components.dart';
 import 'commerce_repository.dart';
 import 'commerce_widgets.dart';
+import 'quick_address_form.dart';
+import '../location/delivery_destination.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -156,8 +158,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cart = cartAsync.asData?.value;
     final items = (cart?['items'] as List?) ?? const [];
     final addresses = saved.asData?.value ?? const [];
+    // Checkout uses the confirmed delivery destination (never the phone's
+    // current position). Choosing another address here updates it app-wide.
+    final destination = ref.watch(deliveryDestinationProvider).asData?.value;
     final chosen =
         addresses.where((a) => a['id'] == addressId).firstOrNull ??
+        addresses.where((a) => a['id'] == destination?['id']).firstOrNull ??
         addresses.firstOrNull;
     final quoteValid =
         cart != null &&
@@ -291,6 +297,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   busy: busy,
                   onRetryAddresses: () => ref.invalidate(addressesProvider),
                   onSelectAddress: (id) => setState(() {
+                    ref.read(selectedAddressIdProvider.notifier).select(id);
                     addressId = id;
                     quote = null;
                     quoteError = null;
@@ -298,16 +305,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     _quotedAddressId = null;
                   }),
                   onManageAddresses: openAddresses,
+                  onAddressSaved: (saved) {
+                    ref.invalidate(addressesProvider);
+                    ref.read(selectedAddressIdProvider.notifier).select(saved['id'] as String);
+                    setState(() {
+                      addressId = saved['id'] as String;
+                      quote = null;
+                      quoteError = null;
+                      _lastQuoteKey = null;
+                      _quotedAddressId = null;
+                    });
+                  },
                 ),
                 const SizedBox(height: 14),
+                // With no address, the inline address form above is the call to action.
                 if (chosen == null)
-                  _CartNoticeCard(
-                    icon: Icons.location_off_outlined,
-                    title: 'Delivery address required',
-                    message: 'Choose a delivery address in Hyderabad to calculate server-verified taxes, fees, and serviceability.',
-                    actionLabel: 'Choose delivery address',
-                    onPressed: busy ? null : openAddresses,
-                  )
+                  const SizedBox.shrink()
                 else if (quoting && !quoteValid)
                   Container(
                     padding: const EdgeInsets.all(18),
@@ -628,6 +641,8 @@ class _CartItemCard extends StatelessWidget {
   }
 }
 
+/// Checkout address: a compact "Delivering to" summary for returning customers,
+/// or a short inline form the first time. Never shown before checkout.
 class _DeliveryAddressCard extends StatelessWidget {
   final List<Json> addresses;
   final Json? chosen;
@@ -636,6 +651,7 @@ class _DeliveryAddressCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onRetryAddresses;
   final ValueChanged<String> onSelectAddress;
+  final ValueChanged<Json> onAddressSaved;
   final VoidCallback onManageAddresses;
   const _DeliveryAddressCard({
     required this.addresses,
@@ -645,14 +661,39 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.busy,
     required this.onRetryAddresses,
     required this.onSelectAddress,
+    required this.onAddressSaved,
     required this.onManageAddresses,
   });
+
+  Future<void> _change(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (sheet) => _AddressPickerSheet(
+      addresses: addresses,
+      chosenId: chosen?['id'] as String?,
+      onSelect: (id) {
+        Navigator.pop(sheet);
+        onSelectAddress(id);
+      },
+      onSaved: (a) {
+        Navigator.pop(sheet);
+        onAddressSaved(a);
+      },
+      onManage: () {
+        Navigator.pop(sheet);
+        onManageAddresses();
+      },
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final a = chosen;
     return Material(
+      key: const ValueKey('checkout-address'),
       color: scheme.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
@@ -663,101 +704,94 @@ class _DeliveryAddressCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: double.infinity,
-              child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
+            if (isLoading) const LinearProgressIndicator(),
+            if (error != null) CommerceFailure(error!, onRetryAddresses),
+            if (a != null) ...[
+              Row(
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.place_outlined,
-                        size: 18,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text('Deliver to', style: theme.textTheme.titleMedium),
-                    ],
+                  Icon(Icons.place_outlined, size: 20, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Delivering to ${a['label']}',
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   TextButton(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    onPressed: busy ? null : onManageAddresses,
-                    child: Text(
-                      addresses.isEmpty
-                          ? 'Add address'
-                          : 'Manage delivery addresses',
-                    ),
+                    onPressed: busy ? null : () => _change(context),
+                    child: const Text('Change'),
                   ),
                 ],
               ),
-            ),
-            if (isLoading) const LinearProgressIndicator(),
-            if (error != null) CommerceFailure(error!, onRetryAddresses),
-            if (addresses.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              for (final a in addresses)
-                InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: busy ? null : () => onSelectAddress(a['id'] as String),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 4,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          chosen?['id'] == a['id']
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off,
-                          size: 20,
-                          color: chosen?['id'] == a['id']
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${a['label']}${a['locality']?['name'] != null ? ' · ${a['locality']['name']}' : ''}',
-                                style: theme.textTheme.labelLarge,
-                              ),
-                              Text(
-                                '${a['addressLine1']}',
-                                style: theme.textTheme.bodySmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+              Padding(
+                padding: const EdgeInsets.only(left: 28),
+                child: Text(
+                  [
+                    a['recipientName'],
+                    [a['addressLine1'], if ((a['addressLine2'] as String?)?.isNotEmpty == true) a['addressLine2']].join(', '),
+                    [if (a['locality']?['name'] != null) a['locality']['name'], a['postalCode']].join(' '),
+                  ].join('\n'),
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (a['localityId'] == null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 28, top: 6),
+                  child: Text(
+                    'This address is outside the current delivery areas. Choose another address to order.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
                   ),
                 ),
-            ] else if (!isLoading && error == null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'No saved address yet. Add a Hyderabad locality to preview your bill.',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              'Serviceability is checked by locality. Exact address routing is not yet verified.',
-              style: theme.textTheme.labelSmall,
-            ),
+            ] else if (!isLoading && error == null)
+              QuickAddressForm(makeDefault: true, onSaved: onAddressSaved),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AddressPickerSheet extends StatefulWidget {
+  final List<Json> addresses;
+  final String? chosenId;
+  final ValueChanged<String> onSelect;
+  final ValueChanged<Json> onSaved;
+  final VoidCallback onManage;
+  const _AddressPickerSheet({required this.addresses, required this.chosenId, required this.onSelect, required this.onSaved, required this.onManage});
+  @override
+  State<_AddressPickerSheet> createState() => _AddressPickerSheetState();
+}
+
+class _AddressPickerSheetState extends State<_AddressPickerSheet> {
+  bool adding = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        child: adding
+            ? QuickAddressForm(makeDefault: false, onSaved: widget.onSaved, onCancel: () => setState(() => adding = false))
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Deliver to', style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  for (final a in widget.addresses)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(a['id'] == widget.chosenId ? Icons.radio_button_checked : Icons.radio_button_off),
+                      title: Text('${a['label']}'),
+                      subtitle: Text('${a['addressLine1']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                      onTap: () => widget.onSelect(a['id'] as String),
+                    ),
+                  TextButton.icon(onPressed: () => setState(() => adding = true), icon: const Icon(Icons.add), label: const Text('Add new address')),
+                  TextButton(onPressed: widget.onManage, child: const Text('Manage saved addresses')),
+                ],
+              ),
       ),
     );
   }
@@ -1105,44 +1139,98 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                   const Divider(height: 20),
                   for (final line in lines) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
+                    Builder(
+                      builder: (context) {
+                        final rawName = (line['name'] as String?) ?? '';
+                        final variant = line['variant'] as Map?;
+                        final variantName = variant?['name'] as String?;
+                        final cleanName =
+                            (variantName != null && variantName.isNotEmpty)
+                            ? rawName
+                                  .replaceAll(
+                                    RegExp(
+                                      r'\s*\(\d+\s*pc\)',
+                                      caseSensitive: false,
+                                    ),
+                                    '',
+                                  )
+                                  .trim()
+                            : rawName;
+                        final addOns = (line['addOns'] as List?) ?? const [];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${line['quantity']} × ${line['name']}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${line['quantity']} × $cleanName',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    if (variantName != null &&
+                                        variantName.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                scheme.surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            variantName,
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: scheme.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    if (addOns.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          [
+                                                for (final a in addOns)
+                                                  ((a as Map)['name']
+                                                          as String?) ??
+                                                      '',
+                                              ]
+                                              .where((s) => s.isNotEmpty)
+                                              .join(' · '),
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              if (line['variant'] != null ||
-                                  (line['addOns'] as List).isNotEmpty)
+                              if (line['lineTotalPaise'] != null) ...[
+                                const SizedBox(width: 10),
                                 Text(
-                                  [
-                                    if (line['variant'] != null)
-                                      line['variant']['name'],
-                                    for (final a in line['addOns']) a['name'],
-                                  ].join(' · '),
-                                  style: theme.textTheme.bodySmall,
+                                  '₹${formatPaise(line['lineTotalPaise'] as int)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
+                              ],
                             ],
                           ),
-                        ),
-                        if (line['lineTotalPaise'] != null) ...[
-                          const SizedBox(width: 10),
-                          Text(
-                            '₹${formatPaise(line['lineTotalPaise'] as int)}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ],
               ),

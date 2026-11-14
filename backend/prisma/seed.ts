@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { createDatabase } from '../src/database/client';
 import catalog from './catalog.json';
+// Explicit, ingredient-based classification (no inference from IDs).
+import { BASE_DISH_FACTS } from './seed_catalog_expansion';
 export const slug=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 export async function seed(db:ReturnType<typeof createDatabase>){
   await db.$transaction(async tx=>{
@@ -18,7 +20,7 @@ export async function seed(db:ReturnType<typeof createDatabase>){
       const [id,restaurantId,name,description,category,imageKey,rupees,section]=record as [string,string,string,string,string,string,number,string];
       const sectionId=`${restaurantId}-${slug(section)}`;
       await tx.menuSection.upsert({where:{id:sectionId},update:{},create:{id:sectionId,restaurantId,name:section,displayOrder:index}});
-      await tx.menuItem.upsert({where:{id},update:{},create:{id,restaurantId,name,description,categoryId:slug(category),imageKey,basePricePaise:rupees*100,sectionId,displayOrder:index,isVegetarian:!['pizza','burger'].includes(id)}});
+      await tx.menuItem.upsert({where:{id},update:{},create:{id,restaurantId,name,description,categoryId:slug(category),imageKey,basePricePaise:rupees*100,sectionId,displayOrder:index,isVegetarian:BASE_DISH_FACTS[id]?.veg??(()=>{throw new Error(`Explicit vegetarian classification missing for ${id}`);})()}});
     }
     for(const name of ['Indiranagar','Koramangala','Whitefield']){
       const id=slug(name);await tx.deliveryZone.upsert({where:{id},update:{},create:{id,name:`${name}, Bengaluru`}});

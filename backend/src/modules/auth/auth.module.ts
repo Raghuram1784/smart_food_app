@@ -12,6 +12,8 @@ class AuthController {
   constructor(@Inject(AuthService) private readonly auth:AuthService,@Inject(SessionService) private readonly sessions:SessionService){}
   @Post('login') @HttpCode(200) @Header('Cache-Control','no-store') @UseGuards(LoginRateGuard)
   login(@Body() input:LoginInput){return this.auth.login(input);}
+  @Get('demo-restaurants') @Header('Cache-Control','no-store')
+  demoRestaurants(){return this.auth.demoRestaurants();}
   @Get('me') @Header('Cache-Control','no-store') @ApiBearerAuth() @UseGuards(AuthGuard)
   me(@CurrentUser() principal:AuthenticatedPrincipal){return this.auth.me(principal);}
   @Patch('me') @Header('Cache-Control','no-store') @ApiBearerAuth() @UseGuards(AuthGuard)

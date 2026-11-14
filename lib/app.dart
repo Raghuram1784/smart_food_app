@@ -1,43 +1,104 @@
-import 'features/commerce/operations_screen.dart';
-import 'core/motion.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/design.dart';
+import 'core/motion.dart';
 import 'core/providers.dart';
+import 'features/auth/account_screen.dart';
+import 'features/auth/login_screen.dart';
+import 'features/commerce/address_screen.dart';
+import 'features/commerce/cart_screen.dart';
+import 'features/commerce/commerce_widgets.dart';
+import 'features/commerce/operations_screen.dart';
+import 'features/commerce/orders_screen.dart';
 import 'features/discovery/home_screen.dart';
 import 'features/discovery/search_screen.dart';
-import 'features/profile/profile_screen.dart';
-import 'features/auth/login_screen.dart';
-import 'features/auth/account_screen.dart';
+import 'features/commerce/customer_otp_layer.dart';
+import 'features/navigation/role_shell.dart';
+import 'features/navigation/workspace_provider.dart';
+import 'features/operations/owner_dashboard_screen.dart';
+import 'features/operations/rider_dashboard_screen.dart';
 import 'features/restaurant/restaurant_screen.dart';
-import 'features/commerce/cart_screen.dart';
-import 'features/commerce/address_screen.dart';
-import 'features/commerce/orders_screen.dart';
-import 'features/commerce/commerce_widgets.dart';
 
-GoRouter createRouter() => GoRouter(
+GoRouter createRouter([WidgetRef? ref]) => GoRouter(
+  initialLocation: '/',
+  redirect: (context, state) {
+    if (ref == null) return null;
+    final workspace = ref.read(activeWorkspaceProvider);
+
+    // If an operational user lands on root '/', redirect them to their active workspace
+    if (state.uri.path == '/') {
+      if (workspace == RoleWorkspace.restaurantOwner) return '/owner';
+      if (workspace == RoleWorkspace.deliveryPartner) return '/deliveries';
+      if (workspace == RoleWorkspace.admin) return '/dispatch';
+    }
+    // Profile redirects to account for consistent role-based account view
+    if (state.uri.path == '/profile') {
+      return '/account';
+    }
+    return null;
+  },
   routes: [
-    GoRoute(
-      path: '/dispatch',
-      builder: (_, _) => const CommerceGate(
-        role: 'ADMIN',
-        child: OperationsScreen(scope: 'dispatch'),
-      ),
+    ShellRoute(
+      builder: (context, state, child) => RoleShell(child: child),
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        GoRoute(path: '/restaurants', builder: (context, state) => const AllRestaurantsScreen()),
+        GoRoute(
+          path: '/search',
+          builder: (context, state) => SearchScreen(
+            key: ValueKey(state.uri.toString()),
+            initialCategory: state.uri.queryParameters['category'],
+            affordable: state.uri.queryParameters['affordable'] == 'true',
+          ),
+        ),
+        GoRoute(
+          path: '/cart',
+          builder: (context, state) => const CommerceGate(child: CartScreen()),
+        ),
+        GoRoute(
+          path: '/orders',
+          builder: (context, state) =>
+              const CommerceGate(child: OrdersScreen()),
+        ),
+        GoRoute(
+          path: '/account',
+          pageBuilder: (context, state) =>
+              editorialPage(context, state, const AccountScreen()),
+        ),
+        GoRoute(
+          path: '/owner',
+          builder: (context, state) => CommerceGate(
+            role: 'RESTAURANT_OWNER',
+            child: OwnerDashboardScreen(
+              restaurantId: state.uri.queryParameters['restaurantId'],
+              initialTab: state.uri.queryParameters['tab'] ?? 'all',
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/deliveries',
+          builder: (context, state) => CommerceGate(
+            role: 'DELIVERY_PARTNER',
+            child: RiderDashboardScreen(
+              tab: state.uri.queryParameters['tab'],
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/dispatch',
+          builder: (context, state) => CommerceGate(
+            role: 'ADMIN',
+            child: OperationsScreen(
+              scope: 'dispatch',
+              tab: state.uri.queryParameters['tab'],
+            ),
+          ),
+        ),
+      ],
     ),
-    GoRoute(
-      path: '/deliveries',
-      builder: (_, _) => const CommerceGate(
-        role: 'DELIVERY_PARTNER',
-        child: OperationsScreen(scope: 'delivery'),
-      ),
-    ),
-    GoRoute(
-      path: '/cart',
-      builder: (context, state) => const CommerceGate(child: CartScreen()),
-    ),
+    // Full screen routes pushed over shell:
     GoRoute(
       path: '/addresses',
       builder: (context, state) => const CommerceGate(child: AddressScreen()),
@@ -53,10 +114,6 @@ GoRouter createRouter() => GoRouter(
       ),
     ),
     GoRoute(
-      path: '/orders',
-      builder: (context, state) => const CommerceGate(child: OrdersScreen()),
-    ),
-    GoRoute(
       path: '/orders/:id',
       builder: (context, state) => CommerceGate(
         child: OrderDetailScreen(
@@ -69,7 +126,10 @@ GoRouter createRouter() => GoRouter(
       path: '/inbox/:id',
       builder: (context, state) => CommerceGate(
         role: 'RESTAURANT_OWNER',
-        child: OrdersScreen(restaurantId: state.pathParameters['id']!),
+        child: OwnerDashboardScreen(
+          restaurantId: state.pathParameters['id']!,
+          initialTab: state.uri.queryParameters['tab'] ?? 'all',
+        ),
       ),
     ),
     GoRoute(
@@ -86,59 +146,6 @@ GoRouter createRouter() => GoRouter(
       path: '/login',
       pageBuilder: (context, state) =>
           editorialPage(context, state, const LoginScreen()),
-    ),
-    GoRoute(
-      path: '/account',
-      pageBuilder: (context, state) =>
-          editorialPage(context, state, const AccountScreen()),
-    ),
-    ShellRoute(
-      builder: (context, state, child) => Scaffold(
-        floatingActionButton: const CartShortcut(),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: child,
-          ),
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: state.uri.path == '/profile'
-              ? 2
-              : state.uri.path == '/search'
-              ? 1
-              : 0,
-          onDestinationSelected: (index) =>
-              context.go(['/', '/search', '/profile'][index]),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Discover',
-            ),
-            NavigationDestination(icon: Icon(Icons.search), label: 'Explore'),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'You',
-            ),
-          ],
-        ),
-      ),
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
-        GoRoute(
-          path: '/search',
-          builder: (context, state) => SearchScreen(
-            key: ValueKey(state.uri.toString()),
-            initialCategory: state.uri.queryParameters['category'],
-            affordable: state.uri.queryParameters['affordable'] == 'true',
-          ),
-        ),
-        GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfileScreen(),
-        ),
-      ],
     ),
     GoRoute(
       path: '/restaurant/:id',
@@ -166,7 +173,7 @@ class FoodApp extends ConsumerStatefulWidget {
 }
 
 class _FoodAppState extends ConsumerState<FoodApp> {
-  late final router = createRouter();
+  late final router = createRouter(ref);
   @override
   void dispose() {
     router.dispose();
@@ -184,5 +191,12 @@ class _FoodAppState extends ConsumerState<FoodApp> {
         ? Duration.zero
         : const Duration(milliseconds: 220),
     routerConfig: router,
+    // One global customer OTP layer above every route (customer accounts only).
+    builder: (context, child) => CustomerOtpLayer(
+      // The popup is inserted into this root Navigator's Overlay, not built here.
+      navigatorKey: router.routerDelegate.navigatorKey,
+      onOpenOrder: (id) => router.push('/orders/$id'),
+      child: child ?? const SizedBox.shrink(),
+    ),
   );
 }

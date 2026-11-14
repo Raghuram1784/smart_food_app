@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../catalog/catalog_repository.dart';
 import '../catalog/catalog_state.dart';
+import '../catalog/diet_preference.dart';
+import '../location/delivery_location_sheet.dart';
 import '../../shared/components.dart';
 import '../commerce/commerce_widgets.dart';
 
@@ -35,8 +37,13 @@ class RestaurantScreen extends ConsumerWidget {
 
   Widget _content(BuildContext context, WidgetRef ref, RestaurantMenu data) {
     final restaurant = data.restaurant;
-    final menu = data.items;
+    // Veg / Non-Veg / Both applies to the actual menu items (server isVegetarian).
+    final diet = ref.watch(dietPreferenceProvider);
+    final allItems = data.items;
+    final menu = allItems.where(diet.allows).toList();
     return Scaffold(
+      // Stay on the menu after adding; the cart is one tap away.
+      bottomNavigationBar: const ViewCartBar(),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantMenuProvider(id));
@@ -102,14 +109,16 @@ class RestaurantScreen extends ConsumerWidget {
                     Text(
                       [
                         if (restaurant.localityName != null)
-                          '${restaurant.localityName}, Hyderabad',
+                          restaurant.localityName!,
                         if (restaurant.serviceAreaNames.isNotEmpty)
-                          'Delivers to ${restaurant.serviceAreaNames.join(', ')}',
+                          'Service areas: ${restaurant.serviceAreaNames.join(', ')}',
                       ].join(' · '),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  ServiceabilityBadge(restaurant.id, showReason: true),
+                  const SizedBox(height: 14),
                   Wrap(
                     spacing: 12,
                     runSpacing: 8,
@@ -118,24 +127,24 @@ class RestaurantScreen extends ConsumerWidget {
                         avatar: const Icon(Icons.star_outline, size: 18),
                         label: Text('${restaurant.rating} sample rating'),
                       ),
-                      Chip(
-                        avatar: const Icon(Icons.schedule, size: 18),
-                        label: Text(restaurant.time),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Demo kitchen · illustrative prices and delivery estimates. Review the server-calculated bill before checkout.',
+                    'Demo kitchen · illustrative prices. No delivery time is estimated without route data. Review the server-calculated bill before checkout.',
                     style: TextStyle(fontSize: 12),
                   ),
                   Text(
                     '${restaurant.operatingStatus.toLowerCase()} · ${restaurant.deliveryAvailable ? 'Delivery eligible' : 'Delivery eligibility not confirmed'}',
                   ),
+                  const SizedBox(height: 14),
+                  const DietSelector(),
                   if (menu.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No menu items yet.'),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(allItems.isEmpty
+                          ? 'No menu items yet.'
+                          : 'No ${diet.label} dishes on this menu. Switch to Both to see everything.'),
                     ),
                   for (final section in menu.map((d) => d.section).toSet()) ...[
                     SectionTitle(section),

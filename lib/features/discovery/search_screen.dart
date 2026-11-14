@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/providers.dart';
+import '../location/delivery_destination.dart';
 import '../catalog/catalog_repository.dart';
 import '../catalog/catalog_state.dart';
 import '../../shared/components.dart';
@@ -53,11 +53,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         affordable: widget.affordable,
       );
     }
-    final area = ref.watch(locationProvider);
+    final area = ref.watch(deliveryServiceAreaProvider);
     final query = (
       text: queryText,
       category: category,
-      area: areaFilter ? area.id : null,
+      area: areaFilter ? area?.id : null,
       affordable: affordable,
       page: page,
     );
@@ -142,6 +142,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       page = 1;
                     }),
                   ),
+                if (area != null)
                 FilterChip(
                   label: Text('In ${area.name}'),
                   selected: areaFilter,

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_food_demo/core/design.dart';
 import 'package:smart_food_demo/core/providers.dart';
+import 'package:smart_food_demo/features/location/delivery_destination.dart';
 import 'package:smart_food_demo/features/catalog/catalog.dart';
 import 'package:smart_food_demo/features/catalog/catalog_repository.dart';
 import 'package:smart_food_demo/features/discovery/meal_comparison_sheet.dart';
@@ -86,6 +87,7 @@ Future<void> host(
   TestPricing repo,
   Widget child, {
   Brightness brightness = Brightness.light,
+  bool withDestination = true,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -95,6 +97,9 @@ Future<void> host(
         preferencesProvider.overrideWithValue(prefs),
         catalogRepositoryProvider.overrideWithValue(OfflineCatalogRepository()),
         pricingRepositoryProvider.overrideWithValue(repo),
+        // A confirmed destination in a service area (smart search prices for it).
+        if (withDestination)
+          deliveryServiceAreaProvider.overrideWithValue(const ServiceArea('madhapur', 'Madhapur')),
       ],
       child: MaterialApp(
         theme: appTheme(brightness),
@@ -115,6 +120,16 @@ void main() {
     for (final bad in ['-1', 'x', '1.001', '1e3']) {
       expect(() => parseBudget(bad), throwsFormatException);
     }
+  });
+  testWidgets('smart search asks for a delivery location instead of defaulting to a demo locality', (
+    tester,
+  ) async {
+    final repo = TestPricing();
+    await host(tester, repo, const SmartSearchScreen(), withDestination: false);
+    expect(find.textContaining('Choose a delivery location inside a current service area'), findsOneWidget);
+    expect(find.text('Choose delivery location'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
   testWidgets('search debounce, vegetarian and reset reach the server query', (
     tester,
@@ -359,7 +374,12 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Showing 3 of 25 meals'), findsOneWidget);
-      await tester.ensureVisible(find.text('Show more meals (22 remaining)'));
+      await tester.scrollUntilVisible(
+        find.text('Show more meals (22 remaining)'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Show more meals (22 remaining)'));
       await tester.pumpAndSettle();
       expect(repo.searches.last.page, 2);

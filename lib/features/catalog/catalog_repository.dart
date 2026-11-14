@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import 'catalog.dart' as local;
 import 'catalog.dart' show Dish, Restaurant;
+import 'diet_preference.dart';
 
 class FoodCategory {
   final String id, name, image;
@@ -42,7 +43,7 @@ abstract class CatalogRepository {
   bool get offline;
   Future<List<ServiceArea>> areas(CancelToken token);
   Future<List<FoodCategory>> categories(CancelToken token);
-  Future<HomeCatalog> home(String? area, CancelToken token);
+  Future<HomeCatalog> home(String? area, CancelToken token, {String? diet});
   Future<CatalogPage> search(SearchQuery query, CancelToken token);
   Future<RestaurantMenu> menu(String id, CancelToken token);
   Future<Dish> item(String id, CancelToken token);
@@ -83,10 +84,10 @@ class ApiCatalogRepository implements CatalogRepository {
           .map((j) => FoodCategory(j['id'], j['name'], j['imageKey']))
           .toList();
   @override
-  Future<HomeCatalog> home(String? area, CancelToken token) async {
+  Future<HomeCatalog> home(String? area, CancelToken token, {String? diet}) async {
     final results = await Future.wait<dynamic>([
-      _get('restaurants', token, {'limit': 30, 'area': ?area}),
-      _get('catalog/search', token, {'limit': 30, 'area': ?area}),
+      _get('restaurants', token, {'limit': 50, 'area': ?area, 'diet': ?diet}),
+      _get('catalog/search', token, {'limit': 50, 'area': ?area, 'diet': ?diet}),
       categories(token),
     ]);
     return HomeCatalog(
@@ -183,12 +184,10 @@ class OfflineCatalogRepository implements CatalogRepository {
       .map((e) => FoodCategory(e.key.toLowerCase(), e.key, e.value))
       .toList();
   @override
-  Future<HomeCatalog> home(String? area, CancelToken token) async =>
-      HomeCatalog(
-        local.restaurants.map(_restaurant).toList(),
-        local.dishes.map(_dish).toList(),
-        await categories(token),
-      );
+  Future<HomeCatalog> home(String? area, CancelToken token, {String? diet}) async {
+    final dishes = local.dishes.map(_dish).where((d) => diet == null || d.isVegetarian == (diet == 'veg')).toList();
+    return HomeCatalog(local.restaurants.map(_restaurant).toList(), dishes, await categories(token));
+  }
   @override
   Future<RestaurantMenu> menu(String id, CancelToken token) async =>
       RestaurantMenu(
@@ -235,10 +234,15 @@ CancelToken _token(Ref ref) {
 final areasProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(catalogRepositoryProvider).areas(_token(ref)),
 );
-final homeCatalogProvider = FutureProvider.autoDispose((ref) {
-  final area = ref.watch(locationProvider).id;
-  return ref.watch(catalogRepositoryProvider).home(area, _token(ref));
-});
+// Home lists every kitchen; delivery eligibility for the confirmed destination
+// is shown per restaurant (serviceabilityProvider) rather than hiding kitchens.
+final homeCatalogProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(catalogRepositoryProvider).home(
+    null,
+    _token(ref),
+    diet: ref.watch(dietPreferenceProvider).api,
+  ),
+);
 final categoriesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(catalogRepositoryProvider).categories(_token(ref)),
 );

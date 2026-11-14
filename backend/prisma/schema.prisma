@@ -56,6 +56,9 @@ model Restaurant {
   address                     String?
   latitude                    Decimal?                 @db.Decimal(9, 6)
   longitude                   Decimal?                 @db.Decimal(9, 6)
+  // Distance-based serviceability applies only when the pickup point is verified and a radius is configured.
+  pickupLocationVerifiedAt    DateTime?                @db.Timestamptz(3)
+  deliveryRadiusMeters        Int?
   rating                      Decimal                  @db.Decimal(3, 2)
   reviewCount                 Int?
   estimatedDeliveryMinutes    Int
@@ -152,6 +155,7 @@ model MenuItem {
   section               MenuSection        @relation(fields: [sectionId, restaurantId], references: [id, restaurantId], onDelete: Restrict)
   variants              MenuItemVariant[]
   addOns                MenuItemAddOn[]
+  nutrition             MenuItemNutrition?
 
   @@index([restaurantId, availabilityStatus, displayOrder, id])
   @@index([categoryId, availabilityStatus, basePricePaise])
@@ -286,6 +290,8 @@ model User {
   roles               UserRole[]
   memberships         RestaurantMembership[]
   sessions            AuthSession[]
+  riderPresence       RiderPresence?
+  deliveryOffers      DeliveryOffer[]
 }
 
 model Role {
@@ -408,15 +414,28 @@ model CustomerAddress {
   addressLine1  String   @db.VarChar(200)
   addressLine2  String   @default("") @db.VarChar(200)
   landmark      String   @default("") @db.VarChar(120)
-  localityId    String   @db.VarChar(64)
+  city          String   @default("") @db.VarChar(80)
+  // Configured service area the customer chose for this address; null = outside current service areas.
+  localityId    String?  @db.VarChar(64)
   postalCode    String   @db.VarChar(6)
   isDefault     Boolean  @default(false)
+  // Confirmed delivery point (device GPS or customer-placed map pin). Null for legacy/manual addresses.
+  latitude               Decimal?               @db.Decimal(9, 6)
+  longitude              Decimal?               @db.Decimal(9, 6)
+  locationAccuracyMeters Float?
+  locationSource         AddressLocationSource?
+  locationConfirmedAt    DateTime?              @db.Timestamptz(3)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
   customer      User     @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  locality      Locality @relation(fields: [localityId], references: [id], onDelete: Restrict)
+  locality      Locality? @relation(fields: [localityId], references: [id], onDelete: Restrict)
 
   @@index([customerId, createdAt])
+}
+
+enum AddressLocationSource {
+  DEVICE_GPS
+  CUSTOMER_MAP_PIN
 }
 
 model CartQuote {
@@ -434,6 +453,8 @@ model CartQuote {
 }
 
 model Order {
+  handover                DeliveryHandover?
+  deliveryOffers          DeliveryOffer[]
   version                 Int                 @default(1)
   rejectionReason         String?             @db.VarChar(300)
   refundReviewRequired    Boolean             @default(false)
@@ -574,18 +595,19 @@ model OrderEvent {
 }
 
 model DeliveryAssignment {
-  id           String      @id @default(uuid()) @db.Uuid
-  orderId      String      @unique @db.Uuid
-  riderId      String      @db.Uuid
-  assignedById String      @db.Uuid
-  status       OrderStatus @default(READY_FOR_PICKUP)
-  assignedAt   DateTime    @default(now()) @db.Timestamptz(3)
-  pickedUpAt   DateTime?   @db.Timestamptz(3)
-  deliveredAt  DateTime?   @db.Timestamptz(3)
-  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
-  order        Order       @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  rider        User        @relation("AssignedRider", fields: [riderId], references: [id], onDelete: Restrict)
-  assignedBy   User        @relation("Dispatcher", fields: [assignedById], references: [id], onDelete: Restrict)
+  handovers    DeliveryHandover[]
+  id           String             @id @default(uuid()) @db.Uuid
+  orderId      String             @unique @db.Uuid
+  riderId      String             @db.Uuid
+  assignedById String             @db.Uuid
+  status       OrderStatus        @default(READY_FOR_PICKUP)
+  assignedAt   DateTime           @default(now()) @db.Timestamptz(3)
+  pickedUpAt   DateTime?          @db.Timestamptz(3)
+  deliveredAt  DateTime?          @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(3)
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  rider        User               @relation("AssignedRider", fields: [riderId], references: [id], onDelete: Restrict)
+  assignedBy   User               @relation("Dispatcher", fields: [assignedById], references: [id], onDelete: Restrict)
 
   @@index([riderId, status])
 }
@@ -600,4 +622,110 @@ model OutboxEvent {
   attempts      Int        @default(0)
 
   @@index([dispatchedAt, nextAttemptAt, createdAt])
+}
+
+model DeliveryHandover {
+  id                        String             @id @default(uuid()) @db.Uuid
+  orderId                   String             @unique @db.Uuid
+  assignmentId              String             @db.Uuid
+  boundRiderId              String             @db.Uuid
+  challengeVersion          Int
+  verifier                  String             @db.Char(64)
+  encryptedPin              String?            @db.VarChar(160)
+  keyVersion                String             @db.VarChar(40)
+  issuedAt                  DateTime           @db.Timestamptz(3)
+  expiresAt                 DateTime           @db.Timestamptz(3)
+  nextIssueAt               DateTime           @db.Timestamptz(3)
+  issueCount                Int                @default(1)
+  failedAttempts            Int                @default(0)
+  lastFailedAt              DateTime?          @db.Timestamptz(3)
+  lockedAt                  DateTime?          @db.Timestamptz(3)
+  lockedUntil               DateTime?          @db.Timestamptz(3)
+  verifiedAt                DateTime?          @db.Timestamptz(3)
+  consumedAt                DateTime?          @db.Timestamptz(3)
+  invalidatedAt             DateTime?          @db.Timestamptz(3)
+  completionExpectedVersion Int?
+  completedOrderVersion     Int?
+  updatedAt                 DateTime           @updatedAt @db.Timestamptz(3)
+  order                     Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  assignment                DeliveryAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  audit                     HandoverAudit[]
+}
+
+model HandoverAudit {
+  id               String           @id @default(uuid()) @db.Uuid
+  handoverId       String           @db.Uuid
+  challengeVersion Int
+  actorUserId      String           @db.Uuid
+  action           String           @db.VarChar(40)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  handover         DeliveryHandover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+
+  @@index([handoverId, createdAt, id])
+}
+
+model RiderPresence {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @db.Uuid
+  isOnline          Boolean   @default(false)
+  latitude          Decimal?  @db.Decimal(9, 6)
+  longitude         Decimal?  @db.Decimal(9, 6)
+  accuracyMeters    Float?
+  locationTimestamp DateTime? @db.Timestamptz(3)
+  lastOnlineAt      DateTime? @db.Timestamptz(3)
+  lastOfflineAt     DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline, updatedAt])
+}
+
+enum DeliveryOfferStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+/// Persisted delivery invitation for one rider. Socket.IO only nudges the app;
+/// riders always read their offers from this table.
+model DeliveryOffer {
+  id          String              @id @default(uuid()) @db.Uuid
+  orderId     String              @db.Uuid
+  riderId     String              @db.Uuid
+  status      DeliveryOfferStatus @default(OFFERED)
+  offeredAt   DateTime            @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime            @db.Timestamptz(3)
+  respondedAt DateTime?           @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  rider       User                @relation(fields: [riderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, riderId])
+  @@index([riderId, status, expiresAt])
+  @@index([orderId, status])
+}
+
+enum NutritionBasis {
+  ESTIMATE
+  LAB_TESTED
+  SUPPLIER_LABEL
+}
+
+/// Nutrition for one clearly defined base serving of a menu item (variants and
+/// add-ons are NOT included). Absent row = "Nutrition unavailable".
+model MenuItemNutrition {
+  menuItemId         String         @id @db.VarChar(64)
+  servingDescription String         @db.VarChar(120)
+  servingGrams       Int?
+  caloriesKcal       Int
+  proteinG           Decimal        @db.Decimal(6, 1)
+  carbsG             Decimal?       @db.Decimal(6, 1)
+  fatG               Decimal?       @db.Decimal(6, 1)
+  basis              NutritionBasis
+  source             String         @db.VarChar(300)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
+  menuItem           MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 }

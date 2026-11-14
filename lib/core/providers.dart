@@ -25,9 +25,13 @@ final appearanceProvider = NotifierProvider<Appearance, ThemeMode>(
 class Appearance extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    final value = ref.read(preferencesProvider).getString('appearance');
-    return ThemeMode.values.where((m) => m.name == value).firstOrNull ??
-        ThemeMode.system;
+    try {
+      final value = ref.read(preferencesProvider).getString('appearance');
+      return ThemeMode.values.where((m) => m.name == value).firstOrNull ??
+          ThemeMode.system;
+    } catch (_) {
+      return ThemeMode.system;
+    }
   }
 
   Future<bool> select(ThemeMode mode) async {
@@ -47,8 +51,9 @@ class ServiceArea {
   final String id, name, city;
   const ServiceArea(this.id, this.name, [this.city = 'Hyderabad']);
 
-  static const defaultArea = ServiceArea('madhapur', 'Madhapur');
-
+  /// Fixture list used only by the explicit offline demo catalog
+  /// (--dart-define=CATALOG_MODE=offline). Live builds load service areas from
+  /// the backend and never default to one of these.
   static const hyderabadAreas = [
     ServiceArea('gachibowli', 'Gachibowli'),
     ServiceArea('madhapur', 'Madhapur'),
@@ -76,22 +81,5 @@ class ServiceArea {
   int get hashCode => id.hashCode;
 }
 
-final locationProvider = NotifierProvider<Location, ServiceArea>(Location.new);
-
-class Location extends Notifier<ServiceArea> {
-  @override
-  ServiceArea build() {
-    final saved = ref.read(preferencesProvider).getString('locality');
-    return ServiceArea.hyderabadAreas.where((a) => a.id == saved).firstOrNull ??
-        ServiceArea.defaultArea;
-  }
-
-  Future<void> select(ServiceArea area) async {
-    state = area;
-    try {
-      await ref.read(preferencesProvider).setString('locality', area.id);
-    } catch (_) {
-      // Keep the selected locality in memory if preferences storage fails.
-    }
-  }
-}
+// The customer's delivery location lives in features/location/delivery_destination.dart
+// (confirmed saved address + its service area). There is no default locality.

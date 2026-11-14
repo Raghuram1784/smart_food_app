@@ -57,6 +57,15 @@ export class OrderGateway implements OnModuleDestroy {
       const permitted=rooms.has('customer:'+o.customerId)||rooms.has('restaurant:'+o.restaurantId)||(o.assignment&&rooms.has('delivery:'+o.assignment.riderId))||(rooms.has('dispatch')&&['READY_FOR_PICKUP','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED'].includes(o.status));
       if(permitted)socket.emit('order.updated',payload);
     }
+    // Rider invitations: nudge riders who hold (or just lost) an invitation for this order.
+    // The payload carries no order details; the app re-reads its offers over the API.
+    if(event.eventType==='ORDER_READY'||event.eventType==='RIDER_ASSIGNED'){
+      const offers=await this.database.client.deliveryOffer.findMany({where:{orderId:o.id},select:{riderId:true}});
+      const riders=new Set(offers.map(x=>'delivery:'+x.riderId));
+      for(const socket of this.server.sockets.sockets.values()){
+        if([...socket.rooms].some(r=>riders.has(r)))socket.emit('delivery.offers',{orderId:o.id,eventType:event.eventType});
+      }
+    }
   }
   onModuleDestroy(){if(this.timer)clearInterval(this.timer);}
 }

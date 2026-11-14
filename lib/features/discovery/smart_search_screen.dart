@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/motion.dart';
-import '../../core/providers.dart';
+import '../catalog/diet_preference.dart';
+import '../location/delivery_destination.dart';
+import '../location/delivery_location_sheet.dart';
 import '../catalog/catalog.dart';
 import '../catalog/catalog_repository.dart';
 import '../catalog/catalog_state.dart';
@@ -101,7 +103,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
 
   Future<void> filters() async {
     final initial = (
-      area: ref.read(locationProvider).id,
+      area: ref.read(deliveryServiceAreaProvider)!.id,
       category: category,
       cuisine: cuisine,
       restaurant: restaurant,
@@ -125,10 +127,6 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
       builder: (_) => SmartFilterSheet(initial),
     );
     if (result == null || !mounted) return;
-    final areas = ref.read(areasProvider).asData?.value ?? [];
-    final area = areas.where((a) => a.id == result.area).firstOrNull;
-    if (area != null) await ref.read(locationProvider.notifier).select(area);
-    if (!mounted) return;
     setState(() {
       category = result.category;
       cuisine = result.cuisine;
@@ -146,18 +144,32 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final area = ref.watch(locationProvider);
     final isOnline = !ref.watch(catalogRepositoryProvider).offline;
 
-    ref.listen(locationProvider, (previous, next) {
-      if (previous?.id != next.id) {
+    ref.listen(deliveryServiceAreaProvider, (previous, next) {
+      if (previous?.id != next?.id) {
         setState(() {
           previousBudgetNotice = null;
           _resetPagination();
         });
       }
     });
+    // Final prices (fees, taxes) depend on the delivery service area of the
+    // confirmed destination. Never fall back to a demo locality.
+    final area = ref.watch(deliveryServiceAreaProvider);
+    if (area == null) {
+      return const ChooseDestinationPrompt(
+        message: 'Smart Match shows final prices including delivery fees for your delivery address. Choose a delivery location inside a current service area to continue.',
+      );
+    }
 
+    // Global Veg/Non-Veg/Both preference is the default; an explicit filter
+    // choice in the sheet overrides it. Applied server-side on isVegetarian.
+    final dietVeg = switch (ref.watch(dietPreferenceProvider)) {
+      DietPreference.veg => true,
+      DietPreference.nonVeg => false,
+      DietPreference.both => null,
+    };
     final query = (
       text: queryText,
       area: area.id,
@@ -165,7 +177,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
       cuisine: cuisine,
       restaurant: restaurant,
       budget: budget,
-      vegetarian: vegetarian,
+      vegetarian: vegetarian ?? dietVeg,
       minutes: minutes,
       rating: rating,
       sort: sort,
@@ -220,7 +232,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
                   cuisine: cuisine,
                   restaurant: restaurant,
                   budget: budget,
-                  vegetarian: vegetarian,
+                  vegetarian: vegetarian ?? dietVeg,
                   minutes: minutes,
                   rating: rating,
                   sort: sort,
@@ -305,6 +317,8 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen> {
                             ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  const DietSelector(),
                   const SizedBox(height: 10),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,

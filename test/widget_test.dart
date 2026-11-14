@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:smart_food_demo/features/catalog/catalog_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_food_demo/app.dart';
 import 'package:smart_food_demo/core/providers.dart';
+import 'package:smart_food_demo/features/commerce/commerce_repository.dart';
+import 'package:smart_food_demo/features/location/delivery_destination.dart';
+import 'package:smart_food_demo/features/auth/auth_repository.dart';
 import 'package:smart_food_demo/features/catalog/catalog.dart';
+import 'package:smart_food_demo/features/catalog/catalog_repository.dart';
 
 void main() {
   test(
@@ -80,21 +85,29 @@ void main() {
               catalogRepositoryProvider.overrideWithValue(
                 OfflineCatalogRepository(),
               ),
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
             ],
             child: const FoodApp(),
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('A little hungry,\nRaghu?'), findsOneWidget);
+        expect(find.text('A little hungry?'), findsOneWidget);
         expect(tester.takeException(), isNull);
+        // Redesigned Home: open a kitchen from the "Browse restaurants" row.
         await tester.scrollUntilVisible(
-          find.text('Good things take fire.'),
-          500,
+          find.byKey(const ValueKey('home-restaurants')),
+          300,
           scrollable: find.byType(Scrollable).first,
         );
-        await tester.ensureVisible(find.text('Good things take fire.'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Good things take fire.'));
+        final row = find.byKey(const ValueKey('home-restaurants'));
+        await tester.dragUntilVisible(
+          find.descendant(of: row, matching: find.text('Hearth & Crust')),
+          row,
+          const Offset(-200, 0),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.descendant(of: row, matching: find.text('Hearth & Crust')));
         await tester.pumpAndSettle();
         expect(find.text('Hearth & Crust'), findsWidgets);
         expect(tester.takeException(), isNull);
@@ -109,7 +122,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Back'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Explore'));
+        await tester.tap(find.text('Search'));
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextField), 'nonsense');
         await tester.pump(const Duration(milliseconds: 350));
@@ -125,7 +138,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Tomato & basil penne'), findsOneWidget);
         expect(find.text('Signature cheeseburger'), findsNothing);
-        await tester.tap(find.text('You'));
+        await tester.tap(find.text('Account'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Dark mode'));
         await tester.pumpAndSettle();
@@ -136,40 +149,56 @@ void main() {
   }
 
   test(
-    'Location persists Hyderabad locality and falls back to Madhapur',
+    'Delivery destination: no demo default, persists the selected saved address per customer',
     () async {
-      SharedPreferences.setMockInitialValues({'locality': 'Indiranagar'});
+      SharedPreferences.setMockInitialValues({'locality': 'madhapur'});
       final prefs = await SharedPreferences.getInstance();
-      var container = ProviderContainer(
-        overrides: [preferencesProvider.overrideWithValue(prefs)],
-      );
-      expect(container.read(locationProvider).id, 'madhapur');
-      expect(container.read(locationProvider).name, 'Madhapur');
-      await container
-          .read(locationProvider.notifier)
-          .select(
-            ServiceArea.hyderabadAreas.firstWhere((a) => a.id == 'gachibowli'),
+      final home = {'id': 'a-home', 'label': 'Home', 'addressLine1': '1 Lane', 'localityId': 'gachibowli', 'locality': {'name': 'Gachibowli'}, 'city': 'Hyderabad', 'isDefault': false, 'hasConfirmedLocation': true, 'latitude': 17.4, 'longitude': 78.3};
+      final family = {'id': 'a-family', 'label': 'Family', 'addressLine1': '2 Lane', 'localityId': null, 'city': 'Hyderabad', 'isDefault': false, 'hasConfirmedLocation': true, 'latitude': 17.5, 'longitude': 78.4};
+      ProviderContainer make(String? customer, List<Map<String, dynamic>> addresses) => ProviderContainer(
+            overrides: [
+              preferencesProvider.overrideWithValue(prefs),
+              customerIdProvider.overrideWithValue(customer),
+              addressesProvider.overrideWith((ref) async => addresses),
+            ],
           );
-      expect(prefs.getString('locality'), 'gachibowli');
-      container.dispose();
+      var c = make('cust-1', [home, family]);
+      await c.read(addressesProvider.future);
+      // A legacy "locality" preference is ignored; nothing selected and no default -> no destination.
+      expect(c.read(deliveryDestinationProvider).value, isNull);
+      expect(c.read(deliveryServiceAreaProvider), isNull);
+      await c.read(selectedAddressIdProvider.notifier).select('a-home');
+      expect(c.read(deliveryDestinationProvider).value?['id'], 'a-home');
+      expect(c.read(deliveryServiceAreaProvider)?.id, 'gachibowli');
+      expect(prefs.getString('delivery_address_cust-1'), 'a-home');
+      await c.read(selectedAddressIdProvider.notifier).select('a-family');
+      expect(c.read(deliveryServiceAreaProvider), isNull, reason: 'outside service areas has no pricing area');
+      c.dispose();
 
-      container = ProviderContainer(
-        overrides: [preferencesProvider.overrideWithValue(prefs)],
-      );
-      expect(container.read(locationProvider).id, 'gachibowli');
-      expect(container.read(locationProvider).name, 'Gachibowli');
-      container.dispose();
+      // Restart: restored for the same customer, not leaked to another customer.
+      c = make('cust-1', [home, family]);
+      await c.read(addressesProvider.future);
+      expect(c.read(deliveryDestinationProvider).value?['id'], 'a-family');
+      c.dispose();
+      c = make('cust-2', [{...home, 'id': 'b-1', 'isDefault': true}]);
+      await c.read(addressesProvider.future);
+      expect(c.read(deliveryDestinationProvider).value?['id'], 'b-1', reason: 'falls back to the default saved address');
+      c.dispose();
+      // Signed out: no destination.
+      c = make(null, []);
+      expect(c.read(deliveryDestinationProvider).value, isNull);
+      c.dispose();
     },
   );
 
   testWidgets(
-    'Hyderabad locality sheet scrolls cleanly at 360px 200% text scale and updates area',
+    'Home shows a Deliver-to selector with no hardcoded locality at 360px 200% text scale',
     (tester) async {
       tester.view.physicalSize = const Size(360, 850);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'locality': 'madhapur'});
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(
         ProviderScope(
@@ -189,48 +218,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text('YOUR NEIGHBOURHOOD · HYDERABAD · DEMO'),
-        findsOneWidget,
-      );
-      expect(find.text('Madhapur'), findsOneWidget);
-      await tester.tap(find.text('Madhapur'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Hyderabad · Demo locations only. No live delivery coverage.',
-        ),
-        findsOneWidget,
-      );
-      await tester.scrollUntilVisible(
-        find.text('Kukatpally / KPHB'),
-        150,
-        scrollable: find.byType(Scrollable).last,
-      );
-      expect(find.text('Kukatpally / KPHB'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Gachibowli'),
-        -150,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.ensureVisible(find.text('Gachibowli'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Gachibowli'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Hyderabad · Demo locations only. No live delivery coverage.',
-        ),
-        findsNothing,
-      );
-      expect(find.text('Gachibowli'), findsOneWidget);
-      expect(prefs.getString('locality'), 'gachibowli');
+      expect(find.text('DELIVER TO'), findsOneWidget);
+      expect(find.text('Sign in to set a delivery location'), findsOneWidget);
+      expect(find.text('YOUR NEIGHBOURHOOD · HYDERABAD · DEMO'), findsNothing);
+      expect(find.text('Madhapur'), findsNothing);
+      expect(find.textContaining('Raghu'), findsNothing);
+      expect(find.textContaining('Ordering is not yet available'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
-    'SearchScreen includes active area filter chip and toggles area query',
+    'SearchScreen is not scoped to a demo locality without a confirmed destination',
     (tester) async {
       final recordedAreas = <String?>[];
       final repo = _RecordingCatalogRepository(recordedAreas);
@@ -246,12 +245,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Explore'));
+      await tester.tap(find.text('Search'));
       await tester.pumpAndSettle();
-      expect(recordedAreas, contains('madhapur'));
-      await tester.tap(find.text('In Madhapur'));
-      await tester.pumpAndSettle();
-      expect(recordedAreas.last, isNull);
+      // No confirmed destination: search is not silently scoped to a demo locality.
+      expect(recordedAreas, isNotEmpty);
+      expect(recordedAreas.every((a) => a == null), isTrue);
+      expect(find.textContaining('In Madhapur'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -266,4 +265,24 @@ class _RecordingCatalogRepository extends OfflineCatalogRepository {
     recordedAreas.add(query.area);
     return super.search(query, token);
   }
+}
+
+class _FakeAuthRepository implements AuthRepository {
+  final events = StreamController<void>.broadcast(sync: true);
+  @override
+  Stream<void> get invalidations => events.stream;
+  @override
+  Future<AuthSession?> restore() async => null;
+  @override
+  Future<AuthSession> login(String email, String password) =>
+      throw UnimplementedError();
+  @override
+  Future<void> logout({bool all = false}) async {}
+  @override
+  Future<void> expire() async {}
+  @override
+  Future<AuthSession> updateName(String name) => throw UnimplementedError();
+  @override
+  Future<Map<String, dynamic>> context(String path) =>
+      throw UnimplementedError();
 }

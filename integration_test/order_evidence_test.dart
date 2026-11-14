@@ -74,8 +74,12 @@ void main() {
     await container.read(appearanceProvider.notifier).select(ThemeMode.dark);
     for (var i = 0; i < 150; i++) {
       await tester.pump(const Duration(milliseconds: 100));
-      if (find.textContaining('Open an order to manage').evaluate().isNotEmpty)
+      if (find
+          .textContaining('Open an order to manage')
+          .evaluate()
+          .isNotEmpty) {
         break;
+      }
     }
     await tester.pumpAndSettle();
     expect(find.textContaining('Open an order to manage'), findsOneWidget);

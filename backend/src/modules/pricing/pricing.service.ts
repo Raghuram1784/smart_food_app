@@ -25,12 +25,13 @@ export class PricingService {
         { OR: [{ zoneId: null }, { zoneId: area }] }] }, orderBy: { code: 'asc' } });
   }
 
-  selection(item: PricedItem, input: QuoteInput) {
+  /** skipZone: serviceability is decided elsewhere (verified-distance policy, or deferred to quote/checkout). */
+  selection(item: PricedItem, input: Omit<QuoteInput, 'area'> & { area?: string }, opts: { skipZone?: boolean } = {}) {
     if (item.restaurantId !== input.restaurantId) throw new UnprocessableEntityException('Item does not belong to this restaurant');
     if (item.availabilityStatus !== 'AVAILABLE' || !item.category.isActive) throw new UnprocessableEntityException(item.availabilityReason ?? 'Item is unavailable');
     const r = item.restaurant;
     const zone = r.zones.find(z => z.zoneId === input.area && z.isEligible && z.zone.isActive);
-    if (r.operatingStatus !== 'OPEN' || !r.deliveryAvailability || !zone) throw new UnprocessableEntityException('Restaurant cannot currently serve the selected locality');
+    if (r.operatingStatus !== 'OPEN' || !r.deliveryAvailability || (!zone && !opts.skipZone)) throw new UnprocessableEntityException('Restaurant cannot currently serve the selected locality');
     const variants = [...item.variants].sort((a,b) => a.priceAdjustmentPaise-b.priceAdjustmentPaise || a.id.localeCompare(b.id));
     const variant = input.variantId ? variants.find(v => v.id === input.variantId) : variants.find(v => v.isAvailable);
     if ((input.variantId || variants.length) && (!variant || !variant.isAvailable)) throw new UnprocessableEntityException('Selected variant is unavailable or incompatible');
@@ -54,7 +55,7 @@ export class PricingService {
     return { item: itemDto(item), area: { id: input.area, name: areaName }, quantity: input.quantity,
       selectedVariant: variant ?? null, selectedAddOns: addOns, ...breakdown,
       currency: 'INR' as const, illustrative: true, orderable: true,
-      estimatedMinutes: zone.estimatedMinutes ?? r.estimatedDeliveryMaxMinutes,
+      estimatedMinutes: zone?.estimatedMinutes ?? r.estimatedDeliveryMaxMinutes,
       quotedAt: now.toISOString(), expiresAt: new Date(expiry).toISOString(), pricingRuleVersion: ruleVersion,
       quoteFingerprint: fingerprint, policyVersion: PRICING_POLICY,
       notice: 'Illustrative single-meal quote. No order is placed. Re-quote before any future checkout; availability and prices are not reserved.',

@@ -12,8 +12,6 @@ import 'package:smart_food_demo/app.dart';
 import 'package:smart_food_demo/core/providers.dart';
 import 'package:smart_food_demo/features/auth/auth_provider.dart';
 import 'package:smart_food_demo/features/auth/auth_repository.dart';
-import 'package:smart_food_demo/features/commerce/commerce_repository.dart';
-import 'package:smart_food_demo/features/commerce/operations_screen.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -54,8 +52,9 @@ void main() {
 
     Future<void> login(String role, String route) async {
       await container.read(authProvider.future);
-      if (container.read(authProvider).asData?.value != null)
+      if (container.read(authProvider).asData?.value != null) {
         await container.read(authProvider.notifier).logout();
+      }
       await container
           .read(authProvider.notifier)
           .login('$role@demo.test', passwords[role]!);
@@ -158,9 +157,25 @@ void main() {
           'Bearer ${r['session']['token']}';
       final o = (await rider.get('operations/delivery/orders/$id'))
           .data['data'];
+      // Verify direct delivery bypass is blocked by Phase 7.1 secure handover
+      try {
+        await rider.post(
+          'operations/delivery/orders/$id/deliver',
+          data: {'expectedVersion': o['version']},
+        );
+        fail('Direct deliver bypass must be blocked');
+      } on DioException catch (e) {
+        expect(e.response?.statusCode, 409);
+      }
+      // Customer generates secure handover OTP
+      final handover = (await external.post('orders/$id/handover/issue'))
+          .data['data'];
+      final pin = handover['pin'] as String;
+      expect(pin.length, 6);
+      // Rider completes delivery handover with authoritative OTP verification
       await rider.post(
-        'operations/delivery/orders/$id/deliver',
-        data: {'expectedVersion': o['version']},
+        'operations/delivery/orders/$id/complete-handover',
+        data: {'pin': pin, 'expectedVersion': o['version']},
       );
       await waitFor(find.text('Delivered'));
       await screenshot('07-customer-live-delivered');

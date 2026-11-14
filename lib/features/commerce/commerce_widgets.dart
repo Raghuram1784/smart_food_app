@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +64,20 @@ String paymentStatusLabel(String value, {bool concise = false}) {
   return value.toLowerCase().replaceAll('_', ' ');
 }
 
+String _roleDescription(String role) {
+  switch (role) {
+    case 'RESTAURANT_OWNER':
+      return 'restaurant owners';
+    case 'DELIVERY_PARTNER':
+      return 'delivery partners';
+    case 'ADMIN':
+      return 'administrators';
+    case 'CUSTOMER':
+    default:
+      return 'customers';
+  }
+}
+
 class CommerceGate extends ConsumerWidget {
   final Widget child;
   final String role;
@@ -87,15 +103,16 @@ class CommerceGate extends ConsumerWidget {
                       Text(
                         s == null
                             ? 'Sign in to continue.'
-                            : 'This view is for ${role == 'CUSTOMER' ? 'customers' : 'restaurant owners'}.',
+                            : 'This view requires authorization for ${_roleDescription(role)}.',
                       ),
+                      const SizedBox(height: 12),
                       TextButton(
                         onPressed: () => context.push('/login?return=back'),
-                        child: const Text('Sign in'),
+                        child: const Text('Sign in with a different account'),
                       ),
                       TextButton(
                         onPressed: () => context.go('/'),
-                        child: const Text('Continue exploring'),
+                        child: const Text('Return to discovery'),
                       ),
                     ],
                   ),
@@ -331,10 +348,14 @@ Future<bool> confirmCartSwitch(BuildContext context) => showDialog<bool>(
 class AddToCartButton extends ConsumerStatefulWidget {
   final Json selection;
   final bool enabled;
+
+  /// Dish name for the confirmation toast.
+  final String? itemName;
   const AddToCartButton({
     super.key,
     required this.selection,
     this.enabled = true,
+    this.itemName,
   });
   @override
   ConsumerState<AddToCartButton> createState() => _AddToCartButtonState();
@@ -373,24 +394,27 @@ class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
         replace = await confirmCartSwitch(context);
         if (!replace) return;
       }
-      await repo.request('POST', 'cart/items', {
+      final updated = await repo.request('POST', 'cart/items', {
         ...selection,
         'expectedVersion': cart['version'],
         'replaceRestaurant': replace,
       });
       if (!mounted) return;
       ref.invalidate(cartProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Added to your cart'),
-            action: SnackBarAction(
-              label: 'View cart',
-              onPressed: () => context.push('/cart'),
-            ),
-          ),
-        );
-      }
+      // Only after the server confirmed the mutation: top toast in the ROOT
+      // overlay (a bottom SnackBar was hidden behind the dish sheet).
+      final count =
+          (updated is Map ? updated['items'] as List? : null)?.fold<int>(
+            0,
+            (n, i) => n + ((i as Map)['quantity'] as int? ?? 0),
+          ) ??
+          0;
+      showCartAddedToast(
+        context,
+        name: widget.itemName ?? 'Item',
+        quantity: (selection['quantity'] as int?) ?? 1,
+        cartCount: count,
+      );
     } catch (e) {
       if (mounted) setState(() => error = commerceError(e));
     } finally {
@@ -438,6 +462,204 @@ class CartShortcut extends ConsumerWidget {
         label: Text('$count'),
         isLabelVisible: count > 0,
         child: const Icon(Icons.shopping_bag_outlined),
+      ),
+    );
+  }
+}
+
+OverlayEntry? _cartToast;
+
+/// Top-of-screen "added to cart" confirmation with a View cart action.
+/// One at a time; auto-dismisses; inserted into the root overlay so it is
+/// visible above bottom sheets and every route.
+void showCartAddedToast(
+  BuildContext context, {
+  required String name,
+  required int quantity,
+  required int cartCount,
+}) {
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+  final router = GoRouter.maybeOf(context);
+  final rootNavigator = Navigator.maybeOf(context, rootNavigator: true);
+  void close() {
+    final entry = _cartToast;
+    _cartToast = null;
+    if (entry == null) return;
+    // The overlay may already be gone (route/app disposed): only remove if mounted.
+    if (entry.mounted) {
+      entry.remove();
+      entry.dispose();
+    }
+  }
+
+  close();
+  _cartToast = OverlayEntry(
+    // The auto-dismiss timer lives in a widget so it dies with the entry/tree.
+    builder: (ctx) => _AutoDismiss(
+      after: const Duration(seconds: 4),
+      onDismiss: close,
+      child: Builder(
+        builder: (ctx) {
+          final theme = Theme.of(ctx);
+          final scheme = theme.colorScheme;
+          return Align(
+            alignment: Alignment.topCenter,
+            child: SafeArea(
+              minimum: const EdgeInsets.all(12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Material(
+                  key: const ValueKey('cart-added-toast'),
+                  elevation: 8,
+                  color: scheme.inverseSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: scheme.inversePrimary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Added $quantity × $name',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: scheme.onInverseSurface,
+                                ),
+                              ),
+                              if (cartCount > 0)
+                                Text(
+                                  '$cartCount ${cartCount == 1 ? 'item' : 'items'} in your cart',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onInverseSurface.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            close();
+                            // Close the dish sheet if open, then open the cart.
+                            rootNavigator?.popUntil((r) => r is! PopupRoute);
+                            router?.push('/cart');
+                          },
+                          child: Text(
+                            'View cart',
+                            style: TextStyle(
+                              color: scheme.inversePrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+  overlay.insert(_cartToast!);
+}
+
+class _AutoDismiss extends StatefulWidget {
+  final Duration after;
+  final VoidCallback onDismiss;
+  final Widget child;
+  const _AutoDismiss({
+    required this.after,
+    required this.onDismiss,
+    required this.child,
+  });
+  @override
+  State<_AutoDismiss> createState() => _AutoDismissState();
+}
+
+class _AutoDismissState extends State<_AutoDismiss> {
+  Timer? _timer;
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(widget.after, widget.onDismiss);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// Sticky "View cart" bar shown while the server cart has items.
+class ViewCartBar extends ConsumerWidget {
+  const ViewCartBar({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(customerIdProvider) == null) return const SizedBox.shrink();
+    final cart = ref.watch(cartProvider).asData?.value;
+    final items = (cart?['items'] as List?) ?? const [];
+    final count = items.fold<int>(
+      0,
+      (n, i) => n + ((i as Map)['quantity'] as int? ?? 0),
+    );
+    if (count == 0) return const SizedBox.shrink();
+    final subtotal = cart?['merchandiseSubtotalPaise'];
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+        child: Material(
+          key: const ValueKey('view-cart-bar'),
+          color: scheme.primary,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => context.push('/cart'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.shopping_bag, color: scheme.onPrimary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$count ${count == 1 ? 'item' : 'items'}${subtotal is int ? ' · ₹${formatPaise(subtotal)}' : ''}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'View cart',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: scheme.onPrimary),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

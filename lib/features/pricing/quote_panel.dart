@@ -2,7 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers.dart';
+import '../location/delivery_destination.dart';
+import '../location/delivery_location_sheet.dart';
 import '../../core/motion.dart';
 import '../catalog/catalog.dart';
 import 'pricing_repository.dart';
@@ -256,7 +257,33 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
   Widget build(BuildContext context) {
     final d = widget.dish;
     final theme = Theme.of(context);
-    final area = ref.watch(locationProvider);
+    final scheme = theme.colorScheme;
+    final area = ref.watch(deliveryServiceAreaProvider);
+    if (area == null) {
+      // No confirmed destination inside a service area: price previews need one.
+      // Adding to cart still works; delivery eligibility is enforced at checkout.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          const ChooseDestinationPrompt(
+            compact: true,
+            message: 'Choose a delivery location to see delivery fees and whether this kitchen delivers to you.',
+          ),
+          const SizedBox(height: 12),
+          AddToCartButton(
+            itemName: d.name,
+            enabled: true,
+            selection: {
+              'restaurantId': d.restaurantId,
+              'menuItemId': d.id,
+              'quantity': 1,
+              'addOnIds': <String>[],
+            },
+          ),
+        ],
+      );
+    }
     final request = (
       item: d.id,
       restaurant: d.restaurantId,
@@ -290,9 +317,33 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
             ),
           ],
         ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Base price: ', style: theme.textTheme.bodySmall),
+              Text(
+                '₹${d.displayPrice}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: scheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
         if (d.variantOptions.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text('Available sizes', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 10),
+          Text(
+            'Available sizes & portions',
+            style: theme.textTheme.labelMedium,
+          ),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -388,6 +439,7 @@ class _DishQuotePanelState extends ConsumerState<DishQuotePanel> {
         ),
         const SizedBox(height: 14),
         AddToCartButton(
+          itemName: d.name,
           enabled: current != null && !state.isLoading,
           selection: {
             'restaurantId': d.restaurantId,
