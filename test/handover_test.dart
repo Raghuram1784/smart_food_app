@@ -132,11 +132,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Secure delivery handover'), findsOneWidget);
-      expect(find.text('Generate delivery PIN'), findsOneWidget);
+      expect(find.text('Request delivery OTP'), findsOneWidget);
       expect(repo.requestLog, contains('GET orders/order-1/handover'));
 
       // Tap generate PIN
-      await tester.tap(find.text('Generate delivery PIN'));
+      await tester.tap(find.text('Request delivery OTP'));
       await tester.pumpAndSettle();
 
       expect(repo.requestLog, contains('POST orders/order-1/handover/issue'));
@@ -282,7 +282,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('042819'), findsNothing);
-        expect(find.text('Generate delivery PIN'), findsNothing);
+        expect(find.text('Request delivery OTP'), findsNothing);
       },
     );
   });

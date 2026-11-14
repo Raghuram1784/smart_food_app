@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design.dart';
 import 'commerce_repository.dart';
+import 'live_orders.dart';
 
 class CustomerHandoverCard extends ConsumerStatefulWidget {
   final Json order;
@@ -53,7 +54,13 @@ class _CustomerHandoverCardState extends ConsumerState<CustomerHandoverCard> {
 
   bool get _isRelevant {
     final status = widget.order['status'];
-    return status == 'OUT_FOR_DELIVERY' || status == 'DELIVERED';
+    // The OTP is issued automatically when a delivery partner accepts.
+    return const {
+      'READY_FOR_PICKUP',
+      'PICKED_UP',
+      'OUT_FOR_DELIVERY',
+      'DELIVERED',
+    }.contains(status);
   }
 
   Future<void> _checkAndFetch() async {
@@ -154,6 +161,15 @@ class _CustomerHandoverCardState extends ConsumerState<CustomerHandoverCard> {
 
   @override
   Widget build(BuildContext context) {
+    // OTP issuance events don't change the order version; refetch on them directly.
+    ref.listen(liveOrdersProvider, (_, next) {
+      final e = next.asData?.value;
+      if (e != null &&
+          e.orderId == widget.order['id'] &&
+          (e.isHandoverIssued || e.eventType == 'RIDER_ARRIVED')) {
+        _fetchHandover(silent: true);
+      }
+    });
     if (!_isRelevant) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
@@ -361,18 +377,24 @@ class _CustomerHandoverCardState extends ConsumerState<CustomerHandoverCard> {
                   ),
                   child: Column(
                     children: [
-                      Text(
-                        pin,
-                        style: theme.textTheme.headlineLarge?.copyWith(
-                          letterSpacing: 10,
-                          fontWeight: FontWeight.w900,
-                          color: scheme.primary,
-                          fontFamily: 'monospace',
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          pin,
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            letterSpacing: 10,
+                            fontWeight: FontWeight.w900,
+                            color: scheme.primary,
+                            fontFamily: 'monospace',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // Wraps on narrow screens / large text instead of overflowing.
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        runSpacing: 2,
                         children: [
                           Icon(
                             Icons.timer_outlined,
@@ -454,7 +476,7 @@ class _CustomerHandoverCardState extends ConsumerState<CustomerHandoverCard> {
               ],
             ] else if (state == 'NOT_ISSUED') ...[
               Text(
-                'Your meal is out for delivery! An authoritative 6-digit PIN ensures only you can receive your order from the delivery partner.',
+                'Your delivery OTP appears here automatically once a delivery partner accepts your order.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -474,7 +496,7 @@ class _CustomerHandoverCardState extends ConsumerState<CustomerHandoverCard> {
                           ),
                         )
                       : const Icon(Icons.pin_outlined),
-                  label: const Text('Generate delivery PIN'),
+                  label: const Text('Request delivery OTP'),
                 ),
               ),
             ] else if (state == 'EXPIRED') ...[

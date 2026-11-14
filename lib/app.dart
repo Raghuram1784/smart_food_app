@@ -14,9 +14,11 @@ import 'features/commerce/operations_screen.dart';
 import 'features/commerce/orders_screen.dart';
 import 'features/discovery/home_screen.dart';
 import 'features/discovery/search_screen.dart';
+import 'features/commerce/customer_otp_layer.dart';
 import 'features/navigation/role_shell.dart';
 import 'features/navigation/workspace_provider.dart';
 import 'features/operations/owner_dashboard_screen.dart';
+import 'features/operations/rider_dashboard_screen.dart';
 import 'features/restaurant/restaurant_screen.dart';
 
 GoRouter createRouter([WidgetRef? ref]) => GoRouter(
@@ -42,6 +44,7 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
       builder: (context, state, child) => RoleShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        GoRoute(path: '/restaurants', builder: (context, state) => const AllRestaurantsScreen()),
         GoRoute(
           path: '/search',
           builder: (context, state) => SearchScreen(
@@ -78,8 +81,7 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
           path: '/deliveries',
           builder: (context, state) => CommerceGate(
             role: 'DELIVERY_PARTNER',
-            child: OperationsScreen(
-              scope: 'delivery',
+            child: RiderDashboardScreen(
               tab: state.uri.queryParameters['tab'],
             ),
           ),
@@ -189,5 +191,12 @@ class _FoodAppState extends ConsumerState<FoodApp> {
         ? Duration.zero
         : const Duration(milliseconds: 220),
     routerConfig: router,
+    // One global customer OTP layer above every route (customer accounts only).
+    builder: (context, child) => CustomerOtpLayer(
+      // The popup is inserted into this root Navigator's Overlay, not built here.
+      navigatorKey: router.routerDelegate.navigatorKey,
+      onOpenOrder: (id) => router.push('/orders/$id'),
+      child: child ?? const SizedBox.shrink(),
+    ),
   );
 }
