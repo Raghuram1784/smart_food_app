@@ -21,6 +21,7 @@ import { PricingService } from '../pricing/pricing.service';
 import { itemInclude } from '../catalog/catalog.mapper';
 import { familySimilarity } from '../food-finder/food-taxonomy';
 import { calculate } from '../pricing/pricing.calculator';
+import { splitBill, type SplitMethod } from './bill-split';
 
 type Tx = Prisma.TransactionClient;
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -148,13 +149,14 @@ export class GroupService {
   // ---------------------------------------------------------------- presentation
   private async present(tx: Tx, g: LoadedGroup, viewerId: string) {
     const lines = new Map<string, { lineTotalPaise: number; variant: any; addOns: any[] }>();
-    let pricing: any = null, pricingError: string | null = null;
+    let pricing: any = null, pricingError: string | null = null, quoteForSplit: any = null;
     if (g.items.length && !['ORDERED', 'CANCELED'].includes(g.status)) {
       try {
         const q = await this.quote(tx, g);
         q.lines.forEach((l: any) => lines.set(l.id, l));
         pricing = { itemSubtotalPaise: q.basePaise, customizationTotalPaise: q.variantPaise + q.addOnPaise, packagingPaise: q.packagingPaise, deliveryPaise: q.deliveryPaise,
           platformPaise: q.platformPaise, discountPaise: q.discountPaise, taxPaise: q.taxPaise, normalTotalPaise: q.finalPayablePaise };
+        quoteForSplit = q;
       } catch (e) { pricingError = e instanceof HttpException ? (e.getResponse() as any)?.message ?? e.message : 'Price unavailable right now'; }
     }
     const names = new Map(g.members.map((m) => [m.userId, m.displayName]));
@@ -162,7 +164,9 @@ export class GroupService {
       const l = lines.get(i.id);
       return { id: i.id, memberId: i.memberId, memberName: names.get(i.memberId) ?? 'Member', mine: i.memberId === viewerId, menuItemId: i.menuItemId, name: i.menuItem.name,
         imageKey: i.menuItem.imageKey, isVegetarian: i.menuItem.isVegetarian, available: i.menuItem.availabilityStatus === 'AVAILABLE', quantity: i.quantity, version: i.version,
-        variant: l?.variant ?? null, addOns: l?.addOns ?? [], lineTotalPaise: l?.lineTotalPaise ?? i.unitPricePaise * i.quantity };
+        variant: l?.variant ?? null, addOns: l?.addOns ?? [], lineTotalPaise: l?.lineTotalPaise ?? i.unitPricePaise * i.quantity,
+        sharedWith: i.sharedWith.filter((u) => names.has(u)), sharedWithNames: i.sharedWith.filter((u) => names.has(u)).map((u) => names.get(u)!),
+        canShare: i.memberId === viewerId || g.organizerId === viewerId };
     });
     const contributions = g.members.filter((m) => m.status === 'ACTIVE').map((m) => ({ userId: m.userId, name: m.displayName,
       itemCount: items.filter((i) => i.memberId === m.userId).reduce((n, i) => n + i.quantity, 0),
@@ -194,6 +198,7 @@ export class GroupService {
         canCancel: isOrganizer && !['ORDERED', 'CANCELED', 'EXPIRED'].includes(g.status), canInvite: isOrganizer && g.status === 'OPEN',
       },
       paymentNote: 'The organizer pays the final order total. Individual amounts are for information only.',
+      split: g.status === 'ORDERED' && g.splitSnapshot ? g.splitSnapshot : quoteForSplit ? this.computeSplit(g, quoteForSplit) : null,
     };
   }
 
@@ -389,6 +394,47 @@ export class GroupService {
     return this.get(p, id);
   }
 
+  // ---------------------------------------------------------------- customer: bill split
+  /** Who owes the organizer what. Basis: the restaurant-agreed total when a valid accepted offer exists, else the normal total. */
+  private computeSplit(g: LoadedGroup, q: any) {
+    const live = g.proposals.find((p) => p.status === 'ACCEPTED' && p.cartRevision === g.cartRevision && p.restaurantId === g.restaurantId && p.agreedTotalPaise != null && (!p.offerExpiresAt || p.offerExpiresAt > new Date()));
+    const negotiated = live ? live.normalTotalPaise - live.agreedTotalPaise! : 0;
+    const members = g.members.filter((m) => m.status === 'ACTIVE').map((m) => ({ userId: m.userId, name: m.displayName }));
+    const lines = q.lines.map((l: any) => { const item = g.items.find((i) => i.id === l.id)!; return { id: l.id, name: l.name, ownerId: item.memberId, sharedWith: item.sharedWith, lineTotalPaise: l.lineTotalPaise }; });
+    const result = splitBill({ method: g.splitMethod as SplitMethod, members, lines, feesPaise: q.packagingPaise + q.deliveryPaise + q.platformPaise + q.taxPaise,
+      discountPaise: q.discountPaise + negotiated, payablePaise: q.finalPayablePaise - negotiated });
+    return { ...result, basis: live ? 'AGREED' : 'ESTIMATE', organizerId: g.organizerId,
+      note: live ? 'Based on the price the restaurant accepted. The organizer pays the restaurant; members settle with the organizer.' : 'Estimate from the normal price. It updates if the restaurant agrees a lower total.' };
+  }
+
+  async shareItem(p: AuthenticatedPrincipal, id: string, itemId: string, input: { memberIds: string[]; expectedVersion: number }) {
+    const g = await this.run(p, 'CUSTOMER', async (tx) => {
+      const g = await this.lockGroup(tx, id);
+      this.member(g, p.userId);
+      this.version(g, input.expectedVersion);
+      this.status(g, ['OPEN', 'LOCKED', 'PROPOSED', 'COUNTERED', 'ACCEPTED', 'REJECTED'], 'The bill can no longer be changed for this group');
+      const item = g.items.find((i) => i.id === itemId);
+      if (!item) throw new NotFoundException('Item not found in this group');
+      if (item.memberId !== p.userId && g.organizerId !== p.userId) throw new ForbiddenException('Only the organizer or the person who added this dish can change who shares it');
+      const active = new Set(g.members.filter((m) => m.status === 'ACTIVE').map((m) => m.userId));
+      const ids = [...new Set(input.memberIds)];
+      if (!ids.length || ids.some((u) => !active.has(u))) throw new UnprocessableEntityException('Choose people who are in this group');
+      const sharedWith = ids.length === 1 && ids[0] === item.memberId ? [] : ids;
+      // Sharing changes who owes what, not what is bought: the cart revision (and any accepted price) stays valid.
+      await tx.groupCartItem.update({ where: { id: itemId }, data: { sharedWith } });
+      await tx.groupOrder.update({ where: { id: g.id }, data: { version: { increment: 1 } } });
+      return tx.groupOrder.findUniqueOrThrow({ where: { id: g.id }, include: groupInclude });
+    });
+    this.notify(g, this.activeIds(g), 'SPLIT_UPDATED');
+    return this.get(p, id);
+  }
+
+  async setSplitMethod(p: AuthenticatedPrincipal, id: string, input: { method: SplitMethod; expectedVersion: number }) {
+    return this.organizerTransition(p, id, input.expectedVersion, ['OPEN', 'LOCKED', 'PROPOSED', 'COUNTERED', 'ACCEPTED', 'REJECTED'], 'The bill can no longer be changed for this group', async (tx, g) => {
+      await tx.groupOrder.update({ where: { id: g.id }, data: { splitMethod: input.method, version: { increment: 1 } } });
+    }, 'SPLIT_UPDATED');
+  }
+
   // ---------------------------------------------------------------- customer: negotiation
   async propose(p: AuthenticatedPrincipal, id: string, input: { proposedTotalPaise: number; expectedVersion: number }) {
     const g = await this.run(p, 'CUSTOMER', async (tx) => {
@@ -560,7 +606,9 @@ export class GroupService {
       // Personal cart items are untouched; its version moves on so (cartId, cartVersion) stays unique.
       await tx.cart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } });
       await tx.groupProposal.update({ where: { id: prop.id }, data: { status: 'USED', orderId: order.id } });
-      await tx.groupOrder.update({ where: { id: g.id }, data: { status: 'ORDERED', orderId: order.id, version: { increment: 1 } } });
+      const finalSplit = { ...this.computeSplit(g, q), basis: 'FINAL', note: 'Final split of the amount the organizer paid.' };
+      if (finalSplit.payablePaise !== prop.agreedTotalPaise) throw new ConflictException('Bill split did not reconcile with the agreed total');
+      await tx.groupOrder.update({ where: { id: g.id }, data: { status: 'ORDERED', orderId: order.id, splitSnapshot: json(finalSplit), version: { increment: 1 } } });
       return { order, g: await tx.groupOrder.findUniqueOrThrow({ where: { id: g.id }, include: groupInclude }) };
     });
     if (out.g) this.notify(out.g, this.activeIds(out.g), 'GROUP_ORDER_CONFIRMED', true);

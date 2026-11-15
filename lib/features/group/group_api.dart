@@ -28,6 +28,9 @@ class GroupApi {
       Json.from(await repo.request('POST', 'groups/$id/proposals', {'proposedTotalPaise': proposedTotalPaise, 'expectedVersion': expectedVersion}));
   Future<Json> answerCounter(String id, String proposalId, bool accept, int expectedVersion) async =>
       Json.from(await repo.request('POST', 'groups/$id/proposals/$proposalId/counter', {'answer': accept ? 'accept' : 'decline', 'expectedVersion': expectedVersion}));
+  Future<Json> share(String id, String itemId, List<String> memberIds, int expectedVersion) async =>
+      Json.from(await repo.request('PATCH', 'groups/$id/items/$itemId/share', {'memberIds': memberIds, 'expectedVersion': expectedVersion}));
+  Future<Json> setSplit(String id, String method, int expectedVersion) async => Json.from(await repo.request('POST', 'groups/$id/split', {'method': method, 'expectedVersion': expectedVersion}));
   Future<Json> alternatives(String id) async => Json.from(await repo.request('GET', 'groups/$id/alternatives'));
   Future<Json> switchTo(String id, String restaurantId, int expectedVersion) async =>
       Json.from(await repo.request('POST', 'groups/$id/switch', {'restaurantId': restaurantId, 'expectedVersion': expectedVersion}));

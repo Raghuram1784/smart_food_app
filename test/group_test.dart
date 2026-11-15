@@ -25,8 +25,8 @@ Json groupFixture({String status = 'OPEN', bool organizer = true, Json? proposal
         {'userId': 'u-b', 'name': 'Bala', 'isOrganizer': false, 'isYou': !organizer},
       ],
       'items': [
-        {'id': 'i-1', 'memberId': 'u-a', 'memberName': 'Asha', 'mine': organizer, 'menuItemId': 'm1', 'name': 'Chicken Dum Biryani with an unusually long descriptive name', 'imageKey': 'biryani', 'isVegetarian': false, 'available': true, 'quantity': 2, 'version': 1, 'variant': null, 'addOns': [], 'lineTotalPaise': 37800},
-        {'id': 'i-2', 'memberId': 'u-b', 'memberName': 'Bala', 'mine': !organizer, 'menuItemId': 'm2', 'name': 'Veg Dum Biryani', 'imageKey': 'biryani', 'isVegetarian': true, 'available': true, 'quantity': 1, 'version': 1, 'variant': null, 'addOns': [], 'lineTotalPaise': 15900},
+        {'id': 'i-1', 'memberId': 'u-a', 'memberName': 'Asha', 'mine': organizer, 'menuItemId': 'm1', 'name': 'Chicken Dum Biryani with an unusually long descriptive name', 'imageKey': 'biryani', 'isVegetarian': false, 'available': true, 'quantity': 2, 'version': 1, 'variant': null, 'addOns': [], 'lineTotalPaise': 37800, 'sharedWith': ['u-a', 'u-b'], 'sharedWithNames': ['Asha', 'Bala'], 'canShare': organizer},
+        {'id': 'i-2', 'memberId': 'u-b', 'memberName': 'Bala', 'mine': !organizer, 'menuItemId': 'm2', 'name': 'Veg Dum Biryani', 'imageKey': 'biryani', 'isVegetarian': true, 'available': true, 'quantity': 1, 'version': 1, 'variant': null, 'addOns': [], 'lineTotalPaise': 15900, 'sharedWith': [], 'sharedWithNames': [], 'canShare': true},
       ],
       'contributions': [
         {'userId': 'u-a', 'name': 'Asha', 'itemCount': 2, 'itemTotalPaise': 37800},
@@ -41,6 +41,13 @@ Json groupFixture({String status = 'OPEN', bool organizer = true, Json? proposal
         'canLeave': !organizer && ['OPEN', 'LOCKED'].contains(status), 'canCancel': organizer && !['ORDERED', 'CANCELED', 'EXPIRED'].contains(status), 'canInvite': organizer && status == 'OPEN',
       },
       'paymentNote': 'The organizer pays the final order total. Individual amounts are for information only.',
+      'split': {
+        'method': 'BY_PERSON', 'basis': 'ESTIMATE', 'organizerId': 'u-a', 'payablePaise': 57200, 'sumPaise': 57200, 'note': 'Estimate from the normal price.',
+        'members': [
+          {'userId': 'u-a', 'name': 'Asha', 'foodPaise': 18900, 'feesPaise': 1235, 'discountPaise': 0, 'sharePaise': 20135, 'items': [{'name': 'Chicken Dum Biryani', 'portionPaise': 18900, 'sharedBetween': 2}]},
+          {'userId': 'u-b', 'name': 'Bala', 'foodPaise': 34800, 'feesPaise': 2265, 'discountPaise': 0, 'sharePaise': 37065, 'items': [{'name': 'Chicken Dum Biryani', 'portionPaise': 18900, 'sharedBetween': 2}, {'name': 'Veg Dum Biryani', 'portionPaise': 15900, 'sharedBetween': 1}]},
+        ],
+      },
     };
 
 Json proposalFixture(String status, {int? counter, int? agreed}) => {
@@ -205,5 +212,44 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('owner-accept-$pid')));
     await _settle(tester);
     expect(repo.calls, contains('POST restaurant/group-proposals/$pid/accept'));
+  });
+
+  testWidgets('split bill: shares per person, organizer switches to equal split, shared dish picker', (tester) async {
+    final repo = GroupFake(groupFixture());
+    await _mount(tester, repo, const GroupRoomScreen(groupId: gid), size: const Size(360, 3800), text: 1.5);
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('group-split')), findsOneWidget);
+    expect(find.text('₹201.35'), findsOneWidget);
+    expect(find.text('₹370.65'), findsOneWidget);
+    expect(find.textContaining('Shares add up to ₹572'), findsOneWidget);
+    expect(find.text('Shared: Asha + Bala'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('split-u-b')));
+    await tester.tap(find.byKey(const ValueKey('split-u-b')));
+    await _settle(tester);
+    expect(find.text('Chicken Dum Biryani (1/2)'), findsOneWidget);
+    await tester.ensureVisible(find.text('Equally'));
+    await tester.tap(find.text('Equally'));
+    await _settle(tester);
+    expect(repo.posts['POST groups/$gid/split'], {'method': 'EQUAL', 'expectedVersion': 7});
+    await tester.ensureVisible(find.byKey(const ValueKey('share-i-2')));
+    await tester.tap(find.byKey(const ValueKey('share-i-2')));
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey('sharer-u-a')));
+    await tester.tap(find.byKey(const ValueKey('share-save')));
+    await _settle(tester);
+    final body = repo.posts['PATCH groups/$gid/items/i-2/share']!;
+    expect((body['memberIds'] as List).toSet(), {'u-a', 'u-b'});
+  });
+
+  testWidgets('member cannot change the split method', (tester) async {
+    final repo = GroupFake(groupFixture(organizer: false));
+    await _mount(tester, repo, const GroupRoomScreen(groupId: gid), size: const Size(393, 2400));
+    await _settle(tester);
+    expect(find.text('The organizer chooses how to split.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Equally'));
+    await tester.tap(find.text('Equally'));
+    await _settle(tester);
+    expect(repo.posts.containsKey('POST groups/$gid/split'), isFalse);
   });
 }

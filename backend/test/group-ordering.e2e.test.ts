@@ -88,6 +88,28 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       assert.equal(s.contributions.reduce((n: number, c: any) => n + c.itemTotalPaise, 0), p.itemSubtotalPaise + p.customizationTotalPaise);
     });
 
+    await t.test('bill split: shared dish, by person and equally; shares always sum to the total; permissions', async () => {
+      let s = await state(A, gid);
+      const aItem = s.items.find((i: any) => i.memberId === A.id), bItem = s.items.find((i: any) => i.memberId === B.id);
+      await as(B).patch(`groups/${gid}/items/${aItem.id}/share`, { memberIds: [A.id, B.id], expectedVersion: s.version }).expect(403);
+      await as(A).patch(`groups/${gid}/items/${aItem.id}/share`, { memberIds: [A.id, C.id], expectedVersion: s.version }).expect(422);
+      const rev = s.cartRevision;
+      s = (await as(A).patch(`groups/${gid}/items/${aItem.id}/share`, { memberIds: [A.id, B.id], expectedVersion: s.version }).expect(200)).body.data;
+      assert.equal(s.cartRevision, rev, 'sharing does not change what is bought');
+      assert.deepEqual(s.items.find((i: any) => i.id === aItem.id).sharedWithNames.sort(), ['Asha', 'Bala']);
+      const split = s.split;
+      assert.equal(split.method, 'BY_PERSON'); assert.equal(split.basis, 'ESTIMATE');
+      assert.equal(split.payablePaise, s.pricing.normalTotalPaise); assert.equal(split.sumPaise, split.payablePaise);
+      const share = (u: any) => split.members.find((m: any) => m.userId === u.id);
+      const half = Math.floor(aItem.lineTotalPaise / 2);
+      assert.ok(Math.abs(share(A).foodPaise - (aItem.lineTotalPaise - half)) <= 0 && share(B).foodPaise === bItem.lineTotalPaise + half, 'shared dish split once between A and B');
+      await as(B).post(`groups/${gid}/split`, { method: 'EQUAL', expectedVersion: s.version }).expect(403);
+      s = (await as(A).post(`groups/${gid}/split`, { method: 'EQUAL', expectedVersion: s.version }).expect(200)).body.data;
+      assert.equal(s.split.method, 'EQUAL'); assert.equal(s.split.sumPaise, s.pricing.normalTotalPaise);
+      assert.ok(Math.abs(s.split.members[0].sharePaise - s.split.members[1].sharePaise) <= 1);
+      s = (await as(A).post(`groups/${gid}/split`, { method: 'BY_PERSON', expectedVersion: s.version }).expect(200)).body.data;
+    });
+
     let proposalId = '', normal = 0;
     await t.test('lock and propose: organizer only, validated range, one live proposal', async () => {
       let s = await state(A, gid);
@@ -131,6 +153,9 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       await as(B).post(`groups/${gid}/proposals/${proposalId}/counter`, { answer: 'accept', expectedVersion: s.version }).expect(403);
       s = (await as(A).post(`groups/${gid}/proposals/${proposalId}/counter`, { answer: 'accept', expectedVersion: s.version }).expect(200)).body.data;
       assert.equal(s.status, 'ACCEPTED'); agreed = s.proposal.agreedTotalPaise; assert.equal(agreed, s.proposal.counterTotalPaise);
+      assert.equal(s.split.basis, 'AGREED'); assert.equal(s.split.payablePaise, agreed); assert.equal(s.split.sumPaise, agreed, 'shares sum to the agreed price');
+      s = (await as(A).post(`groups/${gid}/split`, { method: 'EQUAL', expectedVersion: s.version }).expect(200)).body.data;
+      assert.equal(s.status, 'ACCEPTED', 'changing the split keeps the accepted price valid');
     });
 
     let orderId = '';
@@ -154,7 +179,9 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       await as(A).post(`groups/${gid}/checkout`, { proposalId, expectedVersion: s.version + 1, idempotencyKey: randomUUID() }).expect(409);
       const after = (await as(A).get('cart').expect(200)).body.data;
       assert.equal(after.items.length, 1, 'personal cart items untouched');
-      assert.equal((await state(B, gid)).status, 'ORDERED');
+      const done = await state(B, gid);
+      assert.equal(done.status, 'ORDERED');
+      assert.equal(done.split.basis, 'FINAL'); assert.equal(done.split.method, 'EQUAL'); assert.equal(done.split.sumPaise, agreed, 'frozen split equals what the organizer paid');
     });
 
     await t.test('placed group order enters the normal owner queue and kitchen workflow', async () => {

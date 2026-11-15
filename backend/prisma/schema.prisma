@@ -788,6 +788,11 @@ enum GroupOrderStatus {
   EXPIRED
 }
 
+enum GroupSplitMethod {
+  BY_PERSON
+  EQUAL
+}
+
 enum GroupMemberStatus {
   ACTIVE
   LEFT
@@ -819,6 +824,8 @@ model GroupOrder {
   joinCodeHash     String           @unique @db.Char(64)
   expiresAt        DateTime         @db.Timestamptz(3)
   proposalAttempts Int              @default(0)
+  splitMethod      GroupSplitMethod @default(BY_PERSON)
+  splitSnapshot    Json?
   orderId          String?          @unique @db.Uuid
   createdAt        DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
@@ -858,6 +865,7 @@ model GroupCartItem {
   menuItemId     String      @db.VarChar(64)
   variantId      String?     @db.Uuid
   addOnIds       String[]    @default([]) @db.Uuid
+  sharedWith     String[]    @default([]) @db.Uuid
   selectionKey   String      @db.Char(64)
   quantity       Int
   unitPricePaise Int

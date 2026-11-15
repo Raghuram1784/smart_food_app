@@ -403,6 +403,7 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
               const SizedBox(height: 12),
               _SharedCart(g: g, busy: busy, run: _run, onAdd: () => _addFood(g)),
               if (g['pricing'] != null) ...[const SizedBox(height: 12), _PriceCard(g: g)],
+              if (g['split'] != null) ...[const SizedBox(height: 12), _SplitCard(g: g, busy: busy, run: _run)],
               if (g['pricingError'] != null)
                 Padding(padding: const EdgeInsets.only(top: 12), child: Text(g['pricingError'].toString(), style: TextStyle(color: c.warn))),
             ],
@@ -612,9 +613,18 @@ class _SharedCart extends StatelessWidget {
                       Text([if ((i['variant'] as Map?)?['name'] != null) (i['variant'] as Map)['name'], for (final a in i['addOns'] as List) '+ ${(a as Map)['name']}'].join(' · '),
                           style: text.bodySmall?.copyWith(color: c.muted)),
                     if (i['available'] == false) Text('No longer available', style: text.bodySmall?.copyWith(color: c.warn)),
+                    if ((i['sharedWithNames'] as List? ?? []).isNotEmpty) Text('Shared: ${(i['sharedWithNames'] as List).join(' + ')}', style: text.bodySmall?.copyWith(color: c.forest)),
                     Text(rupees(i['lineTotalPaise'] as int), style: text.bodySmall?.copyWith(color: c.forest, fontWeight: FontWeight.w700)),
                   ]),
                 ),
+                if (i['canShare'] == true && (g['members'] as List).length > 1 && !['ORDERED', 'CANCELED', 'EXPIRED'].contains(g['status']))
+                  IconButton(
+                    key: ValueKey('share-${i['id']}'),
+                    tooltip: 'Share this dish',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: busy ? null : () => _pickSharers(context, g, Json.from(i), run),
+                    icon: Icon((i['sharedWith'] as List).isEmpty ? Icons.call_split : Icons.people_alt, size: 20, color: (i['sharedWith'] as List).isEmpty ? null : c.forest),
+                  ),
                 if (i['mine'] == true && editable) ...[
                   IconButton(
                     tooltip: 'Fewer',
@@ -1079,6 +1089,119 @@ class GroupOrderEntry extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+
+Future<void> _pickSharers(BuildContext context, Json g, Json item, Future<void> Function(Future<void> Function(GroupApi), {String? success}) run) async {
+  final members = (g['members'] as List).cast<Map>();
+  final chosen = <String>{...((item['sharedWith'] as List).isEmpty ? [item['memberId'] as String] : (item['sharedWith'] as List).cast<String>())};
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, set) => AlertDialog(
+        title: Text('Who shares ${item['name']}?'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final m in members)
+            CheckboxListTile(
+              key: ValueKey('sharer-${m['userId']}'),
+              dense: true,
+              value: chosen.contains(m['userId']),
+              onChanged: (v) => set(() => v == true ? chosen.add(m['userId'] as String) : chosen.remove(m['userId'])),
+              title: Text(m['isYou'] == true ? 'You' : m['name'] as String),
+            ),
+          Text('Its cost is split evenly between the people you pick. It is never charged twice.', style: Theme.of(context).textTheme.bodySmall),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(key: const ValueKey('share-save'), onPressed: chosen.isEmpty ? null : () => Navigator.pop(context, true), child: const Text('Save')),
+        ],
+      ),
+    ),
+  );
+  if (ok != true) return;
+  await run((api) => api.share(g['id'] as String, item['id'] as String, chosen.toList(), g['version'] as int), success: 'Bill split updated');
+}
+
+class _SplitCard extends StatefulWidget {
+  final Json g;
+  final bool busy;
+  final Future<void> Function(Future<void> Function(GroupApi), {String? success}) run;
+  const _SplitCard({required this.g, required this.busy, required this.run});
+  @override
+  State<_SplitCard> createState() => _SplitCardState();
+}
+
+class _SplitCardState extends State<_SplitCard> {
+  String? open;
+  @override
+  Widget build(BuildContext context) {
+    final c = FinderColors.of(context);
+    final text = Theme.of(context).textTheme;
+    final g = widget.g;
+    final split = Json.from(g['split'] as Map);
+    final method = split['method'] as String;
+    final organizer = g['isOrganizer'] == true;
+    final editable = organizer && !['ORDERED', 'CANCELED', 'EXPIRED'].contains(g['status']);
+    final basis = split['basis'] as String;
+    final names = {for (final m in (g['members'] as List).cast<Map>()) m['userId']: m['isYou'] == true ? 'You' : m['name']};
+    return _Card(
+      cardKey: const ValueKey('group-split'),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(child: Text('Split bill', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+          DecoratedBox(
+            decoration: BoxDecoration(color: basis == 'ESTIMATE' ? c.goldBg : c.successBg, borderRadius: BorderRadius.circular(999)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              child: Text(basis == 'ESTIMATE' ? 'Estimate' : basis == 'AGREED' ? 'Agreed price' : 'Final', key: const ValueKey('split-basis'), style: text.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: basis == 'ESTIMATE' ? c.charcoal : c.success)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        SegmentedButton<String>(
+          key: const ValueKey('split-method'),
+          segments: const [
+            ButtonSegment(value: 'BY_PERSON', label: Text('By person'), icon: Icon(Icons.person_outline)),
+            ButtonSegment(value: 'EQUAL', label: Text('Equally'), icon: Icon(Icons.drag_handle)),
+          ],
+          selected: {method},
+          onSelectionChanged: !editable || widget.busy ? null : (v) => widget.run((api) => api.setSplit(g['id'] as String, v.first, g['version'] as int)),
+        ),
+        if (!editable && !['ORDERED'].contains(g['status'])) Padding(padding: const EdgeInsets.only(top: 4), child: Text('The organizer chooses how to split.', style: text.bodySmall?.copyWith(color: c.muted))),
+        const SizedBox(height: 8),
+        for (final m in (split['members'] as List).cast<Map>()) ...[
+          InkWell(
+            key: ValueKey('split-${m['userId']}'),
+            onTap: () => setState(() => open = open == m['userId'] ? null : m['userId'] as String),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(children: [
+                CircleAvatar(radius: 14, backgroundColor: m['userId'] == split['organizerId'] ? c.gold : c.paleGreen, child: Text(((names[m['userId']] ?? m['name']) as String)[0].toUpperCase(), style: text.labelMedium?.copyWith(color: c.forest))),
+                const SizedBox(width: 10),
+                Expanded(child: Text('${names[m['userId']] ?? m['name']}${m['userId'] == split['organizerId'] ? ' · pays the order' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Text(rupees(m['sharePaise'] as int), style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Icon(open == m['userId'] ? Icons.expand_less : Icons.expand_more, size: 18, color: c.muted),
+              ]),
+            ),
+          ),
+          if (open == m['userId'])
+            Padding(
+              padding: const EdgeInsets.fromLTRB(38, 0, 4, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (final it in (m['items'] as List? ?? []).cast<Map>())
+                  _row(context, '${it['name']}${(it['sharedBetween'] as int) > 1 ? ' (1/${it['sharedBetween']})' : ''}', rupees(it['portionPaise'] as int)),
+                if (method == 'EQUAL') _row(context, 'Equal share of food', rupees(m['foodPaise'] as int)),
+                _row(context, 'Fees and taxes', rupees(m['feesPaise'] as int)),
+                if ((m['discountPaise'] as int) != 0) _row(context, 'Discount', '−${rupees(m['discountPaise'] as int)}', color: c.success),
+              ]),
+            ),
+        ],
+        const Divider(),
+        _row(context, 'Group total', rupees(split['payablePaise'] as int), bold: true),
+        Text('Shares add up to ${rupees(split['sumPaise'] as int)}. ${split['note']}', key: const ValueKey('split-note'), style: text.bodySmall?.copyWith(color: c.muted)),
+      ]),
     );
   }
 }

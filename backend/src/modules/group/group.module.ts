@@ -33,6 +33,8 @@ class VersionInput { @IsInt() @Min(1) expectedVersion!: number; }
 class ProposeInput { @IsInt() @Min(100) @Max(100_000_000) proposedTotalPaise!: number; @IsInt() @Min(1) expectedVersion!: number; }
 class CounterAnswerInput { @IsIn(['accept', 'decline']) answer!: 'accept' | 'decline'; @IsInt() @Min(1) expectedVersion!: number; }
 class SwitchInput { @Matches(/^[a-z0-9-]{1,64}$/) restaurantId!: string; @IsInt() @Min(1) expectedVersion!: number; }
+class ShareInput { @IsArray() @ArrayMaxSize(12) @ArrayUnique() @IsUUID('all', { each: true }) memberIds!: string[]; @IsInt() @Min(1) expectedVersion!: number; }
+class SplitInput { @IsIn(['BY_PERSON', 'EQUAL']) method!: 'BY_PERSON' | 'EQUAL'; @IsInt() @Min(1) expectedVersion!: number; }
 class GroupCheckoutInput { @IsUUID() proposalId!: string; @IsInt() @Min(1) expectedVersion!: number; @IsUUID() idempotencyKey!: string; }
 class OwnerQuery { @IsOptional() @Matches(/^[a-z0-9-]{1,64}$/) restaurantId?: string; }
 class OwnerResponseInput { @IsOptional() @IsInt() @Min(100) @Max(100_000_000) counterTotalPaise?: number; @IsOptional() @IsString() @MaxLength(300) note?: string; }
@@ -49,6 +51,8 @@ class GroupController {
   @Post(':id/items') @HttpCode(200) add(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: AddGroupItemInput) { return this.groups.addItem(p, id, b); }
   @Patch(':id/items/:itemId') update(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('itemId', ParseUUIDPipe) itemId: string, @Body() b: UpdateGroupItemInput) { return this.groups.updateItem(p, id, itemId, b); }
   @Delete(':id/items/:itemId') remove(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('itemId', ParseUUIDPipe) itemId: string, @Query() q: RevisionQuery) { return this.groups.removeItem(p, id, itemId, Number(q.expectedRevision)); }
+  @Patch(':id/items/:itemId/share') share(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('itemId', ParseUUIDPipe) itemId: string, @Body() b: ShareInput) { return this.groups.shareItem(p, id, itemId, b); }
+  @Post(':id/split') @HttpCode(200) split(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: SplitInput) { return this.groups.setSplitMethod(p, id, b); }
   @Post(':id/leave') @HttpCode(200) leave(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string) { return this.groups.leave(p, id); }
   @Post(':id/lock') @HttpCode(200) lock(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: VersionInput) { return this.groups.lock(p, id, b.expectedVersion); }
   @Post(':id/unlock') @HttpCode(200) unlock(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: VersionInput) { return this.groups.unlock(p, id, b.expectedVersion); }
