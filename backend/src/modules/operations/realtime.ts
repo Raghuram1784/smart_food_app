@@ -35,6 +35,11 @@ export class OrderGateway implements OnModuleDestroy {
       for(const m of memberships)await socket.join('restaurant:'+m.restaurantId);
     }
   }
+  /** Content-free nudge to authenticated rooms (customer:<id>, restaurant:<id>); clients refetch over REST. */
+  notify(rooms:string[],event:'group.updated'|'group.proposals',payload:{groupId:string;event:string}){
+    if(!this.server||!rooms.length)return;
+    this.server.to(rooms).emit(event,payload);
+  }
   async revalidate(){if(!this.server)return;for(const socket of this.server.sockets.sockets.values()){try{await this.rooms(socket);}catch{socket.disconnect(true);}}}
   @SubscribeMessage('order.subscribe') async subscribe(@ConnectedSocket() socket:Socket,@MessageBody() body:unknown){
     try{

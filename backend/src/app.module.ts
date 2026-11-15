@@ -13,5 +13,6 @@ import { CuisinesModule } from './modules/cuisines/cuisines.module';
 import { MenuModule } from './modules/menu/menu.module';
 import { AreasModule } from './modules/areas/areas.module';
 import { FoodFinderModule } from './modules/food-finder/food-finder.module';
-@Module({imports:[OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule]})
+import { GroupModule } from './modules/group/group.module';
+@Module({imports:[OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule,GroupModule]})
 export class AppModule{}

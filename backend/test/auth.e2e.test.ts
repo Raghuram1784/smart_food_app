@@ -77,7 +77,9 @@ test('database authentication and authorization boundaries',{timeout:120000},asy
     await t.test('demo seed is idempotent and production refuses demo configuration',async()=>{
       await seedAuth(db);const before=await db.user.findMany({where:{isDemo:true},orderBy:{email:'asc'}});
       await seedAuth(db);const after=await db.user.findMany({where:{isDemo:true},orderBy:{email:'asc'}});
-      assert.deepEqual(after,before);assert.equal(before.length,4);
+      assert.deepEqual(after,before);
+      // Exactly the seeded demo set (the second customer supports group-order testing).
+      assert.deepEqual(before.map((u:any)=>u.email),['admin@demo.test','customer@demo.test','friend@demo.test','restaurant@demo.test','rider@demo.test']);
       assert.equal(await db.restaurantMembership.count({where:{user:{email:'restaurant@demo.test'}}}),1);
       await assert.rejects(()=>seedAuth(db,{NODE_ENV:'production',DEMO_AUTH_ENABLED:'true'}));
       process.env.NODE_ENV='production';assert.throws(()=>new SessionService({client:db}));process.env.NODE_ENV='test';

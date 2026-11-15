@@ -13,6 +13,7 @@ import 'home_widgets.dart';
 import 'promo_carousel.dart';
 import '../finder/finder_screen.dart';
 import '../finder/finder_theme.dart';
+import '../group/group_screens.dart' show GroupOrderEntry;
 
 /// Customer Home. Opens immediately with no location or address prompt.
 /// Every section is built from backend catalog data for the delivery area
@@ -88,6 +89,8 @@ class _Header extends StatelessWidget {
                   ]),
                   const SizedBox(height: 10),
                   const _SearchBar(),
+                  const SizedBox(height: 10),
+                  const GroupOrderEntry(),
                 ]),
               ),
             ),
