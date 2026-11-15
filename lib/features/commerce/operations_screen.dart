@@ -1,3 +1,5 @@
+import '../scheduling/schedule_widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -264,6 +266,7 @@ class _OperationCardState extends ConsumerState<OperationCard> {
             ),
             const SizedBox(height: 6),
             Text(shortOrderRef(o['orderNumber'])),
+            ScheduleCard(order: o),
             Text(
               formatOrderTime(o['createdAt']),
               style: Theme.of(context).textTheme.bodySmall,

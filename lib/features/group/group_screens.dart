@@ -1,3 +1,4 @@
+import '../scheduling/schedule_widgets.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -515,33 +516,72 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
 
   Future<void> _checkout(Json g) async {
     final prop = Json.from(g['proposal'] as Map);
-    final agreed = prop['agreedTotalPaise'] as int, normal = prop['normalTotalPaise'] as int;
+    final agreed = prop['agreedTotalPaise'] as int,
+        normal = prop['normalTotalPaise'] as int;
     final c = FinderColors.of(context);
+    Json? schedule = {};
     final ok = await showDialog<bool>(
       context: context,
       useRootNavigator: true,
-      builder: (context) => AlertDialog(
-        title: const Text('Place the group order?'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${(g['restaurant'] as Map)['name']} · ${(g['items'] as List).fold<int>(0, (n, i) => n + ((i as Map)['quantity'] as int))} items from ${g['memberCount']} people'),
-          const SizedBox(height: 10),
-          _row(context, 'Normal total', rupees(normal)),
-          _row(context, 'Group discount', '−${rupees(normal - agreed)}', color: c.success),
-          const Divider(),
-          _row(context, 'You pay', rupees(agreed), bold: true),
-          const SizedBox(height: 8),
-          Text('You pay the full order total (demo checkout, no real payment). Delivery goes to your selected address.', style: Theme.of(context).textTheme.bodySmall),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not yet')),
-          FilledButton(key: const ValueKey('group-confirm-order'), onPressed: () => Navigator.pop(context, true), child: const Text('Place order')),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Place the group order?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${(g['restaurant'] as Map)['name']} · ${(g['items'] as List).fold<int>(0, (n, i) => n + ((i as Map)['quantity'] as int))} items from ${g['memberCount']} people',
+                ),
+                const SizedBox(height: 10),
+                _row(context, 'Normal total', rupees(normal)),
+                _row(
+                  context,
+                  'Group discount',
+                  '−${rupees(normal - agreed)}',
+                  color: c.success,
+                ),
+                const Divider(),
+                _row(context, 'You pay', rupees(agreed), bold: true),
+                const SizedBox(height: 8),
+                SchedulePicker(
+                  restaurantId: g['restaurant']['id'] as String,
+                  onChanged: (value) => setDialogState(() => schedule = value),
+                ),
+                Text(
+                  'You pay the full order total (demo checkout, no real payment). Delivery goes to your selected address.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Not yet'),
+            ),
+            FilledButton(
+              key: const ValueKey('group-confirm-order'),
+              onPressed: schedule == null
+                  ? null
+                  : () => Navigator.pop(context, true),
+              child: const Text('Place order'),
+            ),
+          ],
+        ),
       ),
     );
     if (ok != true) return;
     String? orderId;
     await _run((api) async {
-      final r = await api.checkout(widget.groupId, prop['id'] as String, g['version'] as int, newIdempotencyKey());
+      final r = await api.checkout(
+        widget.groupId,
+        prop['id'] as String,
+        g['version'] as int,
+        newIdempotencyKey(),
+        schedule: schedule!,
+      );
       orderId = r['orderId'] as String;
     }, success: 'Group order placed');
     if (orderId != null && mounted) context.push('/orders/$orderId');

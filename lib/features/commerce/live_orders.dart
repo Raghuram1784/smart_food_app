@@ -34,7 +34,8 @@ class LiveOrderUpdate {
     this.groupProposalsChanged = false,
   });
 
-  bool get isHandoverIssued => eventType?.startsWith('HANDOVER_ISSUED') ?? false;
+  bool get isHandoverIssued =>
+      eventType?.startsWith('HANDOVER_ISSUED') ?? false;
 }
 
 class EventVersions {
@@ -121,10 +122,12 @@ final liveOrdersProvider = StreamProvider<LiveOrderUpdate>((ref) {
       final type = event['eventType'] as String?;
       // OTP issuance / arrival do not change the order version; de-duplicate
       // them by event id instead of dropping them as "not newer".
-      final versionless = type != null &&
+      final versionless =
+          type != null &&
           (type.startsWith('HANDOVER_ISSUED') || type == 'RIDER_ARRIVED');
       final fresh = versionless
-          ? (event['eventId'] is String && seenEvents.add(event['eventId'] as String))
+          ? (event['eventId'] is String &&
+                seenEvents.add(event['eventId'] as String))
           : versions.accept(event);
       if (fresh) {
         emit(
@@ -138,10 +141,23 @@ final liveOrdersProvider = StreamProvider<LiveOrderUpdate>((ref) {
     }
   });
   socket.on('group.updated', (dynamic raw) {
-    emit(LiveOrderUpdate('Live updates connected', groupId: raw is Map ? raw['groupId'] as String? : null, eventType: raw is Map ? raw['event'] as String? : null));
+    emit(
+      LiveOrderUpdate(
+        'Live updates connected',
+        groupId: raw is Map ? raw['groupId'] as String? : null,
+        eventType: raw is Map ? raw['event'] as String? : null,
+      ),
+    );
   });
   socket.on('group.proposals', (dynamic raw) {
-    emit(LiveOrderUpdate('Live updates connected', groupId: raw is Map ? raw['groupId'] as String? : null, eventType: raw is Map ? raw['event'] as String? : null, groupProposalsChanged: true));
+    emit(
+      LiveOrderUpdate(
+        'Live updates connected',
+        groupId: raw is Map ? raw['groupId'] as String? : null,
+        eventType: raw is Map ? raw['event'] as String? : null,
+        groupProposalsChanged: true,
+      ),
+    );
   });
   socket.on('delivery.offers', (dynamic raw) {
     emit(
@@ -189,6 +205,20 @@ class LiveOrderBar extends ConsumerWidget {
               event.orderId != null &&
                   (orderId == null || orderId == event.orderId))) {
         ref.invalidate(commerceReadProvider(path));
+        final message = switch (event.eventType) {
+          'SCHEDULE_AT_RISK' => 'A scheduled order is at risk of delay. Check its latest progress.',
+          'SCHEDULE_DELAYED' => 'A scheduled delivery has missed its target window. View order details for updates.',
+          'SCHEDULE_PREPARATION_DUE' => 'Scheduled preparation time has arrived.',
+          _ => null,
+        };
+        if (message != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(message)));
+            }
+          });
+        }
+
       }
     });
 
@@ -311,6 +341,11 @@ class OrderTimeline extends StatelessWidget {
 
 String eventLabel(String value) =>
     const {
+      'SCHEDULE_PREPARATION_DUE': 'Scheduled preparation should begin',
+      'SCHEDULE_AT_RISK': 'Delivery target at risk of delay',
+      'SCHEDULE_DELAYED': 'Delivery target window missed',
+      'SCHEDULE_DISPATCH_DUE': 'Scheduled rider invitations released',
+      'SCHEDULE_CANCELED': 'Scheduled order canceled',
       'ORDER_CREATED': 'Order recorded',
       'PAYMENT_CAPTURED': 'Test payment confirmed',
       'ORDER_ACCEPTED': 'Restaurant accepted',
@@ -323,4 +358,6 @@ String eventLabel(String value) =>
       'OUT_FOR_DELIVERY': 'Out for delivery',
       'ORDER_DELIVERED': 'Delivered',
     }[value] ??
-    (value.startsWith('HANDOVER_ISSUED') ? 'Delivery OTP issued' : 'Order updated');
+    (value.startsWith('HANDOVER_ISSUED')
+        ? 'Delivery OTP issued'
+        : 'Order updated');

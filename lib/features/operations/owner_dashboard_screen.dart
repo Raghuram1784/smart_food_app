@@ -102,7 +102,8 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
       orElse: () => restaurants.first,
     );
 
-    final path = 'restaurants/$activeRestaurantId/orders?page=$_page&limit=20';
+    final path =
+        'restaurants/$activeRestaurantId/orders?page=$_page&limit=20${_activeTab == 'scheduled' ? '&deliveryMode=SCHEDULED' : ''}';
 
     return Scaffold(
       appBar: AppBar(
@@ -127,7 +128,9 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
           IconButton(
             key: const ValueKey('owner-group-proposals'),
             tooltip: 'Group proposals',
-            onPressed: () => context.push('/owner/group-proposals?restaurantId=$activeRestaurantId'),
+            onPressed: () => context.push(
+              '/owner/group-proposals?restaurantId=$activeRestaurantId',
+            ),
             icon: const Icon(Icons.handshake_outlined),
           ),
           if (restaurants.length > 1)
@@ -178,7 +181,9 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
               final totalCount = raw['total'] as int? ?? allOrders.length;
               final serverPendingCount =
                   raw['pendingCount'] as int? ??
-                  allOrders.where((o) => o['status'] == 'PENDING_RESTAURANT').length;
+                  allOrders
+                      .where((o) => o['status'] == 'PENDING_RESTAURANT')
+                      .length;
 
               final newOrders = allOrders
                   .where((o) => o['status'] == 'PENDING_RESTAURANT')
@@ -198,8 +203,22 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                   )
                   .toList();
 
+              final scheduledOrders = allOrders
+                  .where(
+                    (o) =>
+                        o['deliveryMode'] == 'SCHEDULED' &&
+                        ![
+                          'DELIVERED',
+                          'CANCELED',
+                          'REJECTED',
+                        ].contains(o['status']),
+                  )
+                  .toList();
               List<Json> filteredOrders;
               switch (_activeTab) {
+                case 'scheduled':
+                  filteredOrders = scheduledOrders;
+                  break;
                 case 'new':
                   filteredOrders = newOrders;
                   break;
@@ -241,6 +260,16 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
+                          _FilterPill(
+                            label:
+                                'Scheduled Orders (${scheduledOrders.length})',
+                            selected: _activeTab == 'scheduled',
+                            onTap: () => setState(() {
+                              _activeTab = 'scheduled';
+                              _page = 1;
+                            }),
+                          ),
+                          const SizedBox(width: 8),
                           _FilterPill(
                             label: 'All ($totalCount)',
                             selected: _activeTab == 'all',
