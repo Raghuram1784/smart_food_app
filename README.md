@@ -25,8 +25,6 @@ Built by **Team NeuroX · KL University** for the **Accurate Background AI Hacka
 
 **[Download Android APK](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Samori.apk)** · **[Download Project Demonstration Video](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4)** · [Release v1.1.0](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/tag/v1.1.0)
 
-<sub>Public mirror: [APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk) · [Video](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) · [Release](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0)</sub>
-
 **[For judges](#for-judges-install-and-try-it) · [Features](#implemented-features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Run it](#run-it-locally) · [Tests](#testing-evidence) · [Deployment](#deployment) · [Team](#team-neurox)**
 
 </div>
@@ -35,13 +33,13 @@ Built by **Team NeuroX · KL University** for the **Accurate Background AI Hacka
 
 ## For judges: install and try it
 
-1. On an Android phone (Android 7.0 or later), open **[Download Samori.apk](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Samori.apk)** (public mirror: [Samori.apk](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk)).
+1. On an Android phone (Android 7.0 or later), open **[Download Samori.apk](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Samori.apk)**.
 2. Open the downloaded file. If Android asks, allow **Install unknown apps** for your browser or Files app, then tap **Install**.
 3. Open **SAMORI** and sign in with the demo accounts shared with the submission (one each for Customer, Restaurant Owner, Delivery Partner and Admin). Credentials are not published here.
 4. The app connects to the hosted API on Render. The free server sleeps when idle, so the **first screen can take up to a minute** to load.
 5. Payments run in **Razorpay Test Mode**: no real money moves. Use Razorpay's published test card or test UPI on the payment screen.
 
-**Demonstration video:** [Team-NeuroX_KL_University.mp4](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) (public mirror: [MP4](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4)) shows every feature end to end.
+**Demonstration video:** [Team-NeuroX_KL_University.mp4](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) shows every feature end to end.
 
 **Suggested 5-minute tour**
 - **Customer:** set the delivery address to Gachibowli → try **Kids Meals** and the **AI Smart Food Finder** → order and pay in test mode → follow live tracking.
@@ -436,11 +434,9 @@ Configuration lives in [`render.yaml`](render.yaml) and the [production settings
 
 | | |
 |---|---|
-| Personal repository | [Raghuram1784/smart_food_app](https://github.com/Raghuram1784/smart_food_app) |
 | Hackathon repository | [Accurate-Hackathon/KL-NeuroX](https://github.com/Accurate-Hackathon/KL-NeuroX) |
 | Release | [Samori v1.1.0 · Hackathon Edition](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/tag/v1.1.0) · [Download APK](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Samori.apk) · [Demo video](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) |
-| Public mirror | [Release](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk) · [Demo video](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) |
-| Default branch | `main` (kept identical in both repositories) |
+| Default branch | `main` |
 | Layout | `lib/` Flutter app · `backend/` NestJS API and Prisma schema · `docs/` design notes, evidence and screenshots |
 
 ---
