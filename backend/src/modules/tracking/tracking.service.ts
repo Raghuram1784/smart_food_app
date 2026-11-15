@@ -168,7 +168,15 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
     } else if (this.routing.configured && (!t?.etaComputedAt || c.now.getTime() - t.etaComputedAt.getTime() >= ETA_RULES.refreshSeconds * 1000)) {
       route = await this.routing.route([c.rider!, c.destination!]);
       const eta = computeEta({ ...base, routeToCustomer: route, routeToRestaurant: null });
-      await this.database.client.deliveryTracking.update({ where: { orderId: o.id }, data: { etaSeconds: route?.durationSeconds ?? eta.seconds, etaDistanceMeters: route?.distanceMeters ?? null, etaSource: route ? 'ROUTED' : 'ESTIMATE', etaPhase: eta.phase, routeGeometry: route ? (route.geometry as any) : Prisma.JsonNull, etaComputedAt: c.now } }).catch(() => undefined);
+      if (route) {
+        await this.database.client.deliveryTracking.update({ where: { orderId: o.id }, data: { etaSeconds: route.durationSeconds, etaDistanceMeters: route.distanceMeters, etaSource: 'ROUTED', etaPhase: eta.phase, routeGeometry: route.geometry as any, etaComputedAt: c.now } }).catch(() => undefined);
+      } else {
+        // Provider failed or was rate-limited (e.g. a concurrent request): retry in ~15 s, and never
+        // overwrite a road route computed meanwhile by another request.
+        const retryAt = new Date(c.now.getTime() - (ETA_RULES.refreshSeconds - 15) * 1000);
+        await this.database.client.deliveryTracking.updateMany({ where: { orderId: o.id, OR: [{ etaComputedAt: null }, { etaComputedAt: { lt: new Date(c.now.getTime() - ETA_RULES.refreshSeconds * 1000) } }] },
+          data: { etaSeconds: eta.seconds, etaDistanceMeters: null, etaSource: 'ESTIMATE', etaPhase: eta.phase, routeGeometry: Prisma.JsonNull, etaComputedAt: retryAt } }).catch(() => undefined);
+      }
       return eta;
     }
     return computeEta({ ...base, routeToCustomer: route, routeToRestaurant: null });
