@@ -249,6 +249,75 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       assert.equal(s.status, 'LOCKED'); assert.equal(s.proposal.status, 'EXPIRED');
     });
 
+    await t.test('order for friends: organizer adds named guests and their food on one phone; split and negotiated checkout', async () => {
+      // C organizes from their own address; guests have no account, invite or session.
+      const cAddress = await db.customerAddress.create({ data: { customerId: C.id, label: 'Office', recipientName: 'Chitra', contactNumber: '9000000001', addressLine1: '2 Synthetic Lane', postalCode: '500032', city: 'Hyderabad', localityId: zone } });
+      const r = (await as(C).post('groups', { restaurantId: rid, addressId: cAddress.id, name: 'Team lunch' }).expect(200)).body.data;
+      const g5 = r.group.id; groupIds.push(g5);
+      let s = r.group;
+      assert.equal(s.permissions.canManageGuests, true, 'organizer can manage guests');
+      s = (await as(C).post(`groups/${g5}/guests`, { name: '  Ravi  ', expectedVersion: s.version }).expect(200)).body.data;
+      s = (await as(C).post(`groups/${g5}/guests`, { name: 'Meena', expectedVersion: s.version }).expect(200)).body.data;
+      await as(C).post(`groups/${g5}/guests`, { name: 'ravi', expectedVersion: s.version }).expect(409); // duplicate name
+      await as(C).post(`groups/${g5}/guests`, { name: '   ', expectedVersion: s.version }).expect(400); // blank name fails validation
+      const ravi = s.members.find((m: any) => m.name === 'Ravi'), meena = s.members.find((m: any) => m.name === 'Meena');
+      assert.ok(ravi.isGuest && meena.isGuest && s.members.length === 3);
+      const stored = await db.groupMember.findMany({ where: { groupId: g5, isGuest: true } });
+      assert.ok(stored.every((m: any) => m.accountId === null), 'guests are not accounts');
+      // A friend who joined with an account still adds their own food; nobody else manages guests.
+      const inv = (await as(C).post(`groups/${g5}/invite`).expect(200)).body.data;
+      await as(B).post('groups/join', { code: inv.joinCode }).expect(200);
+      s = await state(C, g5);
+      await as(B).post(`groups/${g5}/guests`, { name: 'Sneaky', expectedVersion: s.version }).expect(403);
+      await as(B).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision, forMemberId: ravi.userId }).expect(403);
+      await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision, forMemberId: B.id }).expect(403);
+      await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision, forMemberId: randomUUID() }).expect(422);
+      // Organizer picks food for each guest, then shares a dish between a guest and themself.
+      s = (await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[1].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision, forMemberId: ravi.userId }).expect(200)).body.data;
+      s = (await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 2, addOnIds: [], expectedRevision: s.cartRevision, forMemberId: meena.userId }).expect(200)).body.data;
+      s = (await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision }).expect(200)).body.data;
+      s = (await as(B).post(`groups/${g5}/items`, { menuItemId: dishes[1].id, quantity: 1, addOnIds: [], expectedRevision: s.cartRevision }).expect(200)).body.data;
+      s = await state(C, g5); // organizer's view
+      const meenaItem = s.items.find((i: any) => i.memberId === meena.userId);
+      assert.equal(meenaItem.forGuest, true, 'guest line'); assert.equal(meenaItem.canEdit, true, 'organizer edits guest line');
+      assert.equal(s.items.find((i: any) => i.memberId === B.id).canEdit, false, 'organizer cannot edit an account holder\'s food');
+      s = (await as(C).patch(`groups/${g5}/items/${meenaItem.id}`, { quantity: 1, expectedRevision: s.cartRevision }).expect(200)).body.data;
+      const bView = await state(B, g5);
+      await as(B).patch(`groups/${g5}/items/${meenaItem.id}`, { quantity: 3, expectedRevision: bView.cartRevision }).expect(403);
+      const raviItem = s.items.find((i: any) => i.memberId === ravi.userId);
+      s = (await as(C).patch(`groups/${g5}/items/${raviItem.id}/share`, { memberIds: [ravi.userId, C.id], expectedVersion: s.version }).expect(200)).body.data;
+      // Both split methods add up exactly, guests included.
+      assert.equal(s.split.members.length, 4);
+      assert.equal(s.split.sumPaise, s.pricing.normalTotalPaise);
+      assert.ok(s.split.members.every((m: any) => m.sharePaise >= 0));
+      const raviShare = s.split.members.find((m: any) => m.userId === ravi.userId);
+      assert.ok(raviShare.items.some((it: any) => it.sharedBetween === 2), 'shared dish split between Ravi and the organizer');
+      s = (await as(C).post(`groups/${g5}/split`, { method: 'EQUAL', expectedVersion: s.version }).expect(200)).body.data;
+      const eq = s.split.members.map((m: any) => m.sharePaise);
+      assert.equal(eq.reduce((a: number, b: number) => a + b, 0), s.pricing.normalTotalPaise);
+      assert.ok(Math.max(...eq) - Math.min(...eq) <= 1);
+      // Removing a guest removes their food and invalidates the cart revision.
+      const extra = (await as(C).post(`groups/${g5}/guests`, { name: 'Temp', expectedVersion: s.version }).expect(200)).body.data;
+      const temp = extra.members.find((m: any) => m.name === 'Temp');
+      let t2 = (await as(C).post(`groups/${g5}/items`, { menuItemId: dishes[0].id, quantity: 1, addOnIds: [], expectedRevision: extra.cartRevision, forMemberId: temp.userId }).expect(200)).body.data;
+      const before = t2.cartRevision;
+      await as(B).del(`groups/${g5}/guests/${temp.userId}?expectedVersion=${t2.version}`).expect(403);
+      t2 = (await as(C).del(`groups/${g5}/guests/${temp.userId}?expectedVersion=${t2.version}`).expect(200)).body.data;
+      assert.ok(t2.cartRevision > before && !t2.items.some((i: any) => i.memberId === temp.userId) && !t2.members.some((m: any) => m.userId === temp.userId));
+      // Lock, propose, restaurant accepts directly (no counter), organizer checks out at the agreed price.
+      s = (await as(C).post(`groups/${g5}/lock`, { expectedVersion: t2.version }).expect(200)).body.data;
+      await as(C).post(`groups/${g5}/guests`, { name: 'Late', expectedVersion: s.version }).expect(409);
+      s = (await as(C).post(`groups/${g5}/proposals`, { proposedTotalPaise: s.negotiationRange.minAllowedTotalPaise, expectedVersion: s.version }).expect(200)).body.data;
+      await as(owner).post(`restaurant/group-proposals/${s.proposal.id}/accept`).expect(200);
+      s = await state(C, g5);
+      assert.equal(s.status, 'ACCEPTED'); assert.equal(s.split.basis, 'AGREED'); assert.equal(s.split.sumPaise, s.proposal.agreedTotalPaise);
+      const out = (await as(C).post(`groups/${g5}/checkout`, { proposalId: s.proposal.id, expectedVersion: s.version, idempotencyKey: randomUUID() }).expect(200)).body.data;
+      assert.equal(out.finalPayablePaise, s.proposal.agreedTotalPaise);
+      s = await state(C, g5);
+      assert.equal(s.split.basis, 'FINAL'); assert.equal(s.split.sumPaise, out.finalPayablePaise);
+      assert.equal(s.split.members.length, 4);
+    });
+
     await t.test('invite guessing is rate limited', async () => {
       const D = await mk('CUSTOMER', 'Dev');
       tokens.set(D.id, (await api.post('/api/v1/auth/login').send({ email: D.email, password }).expect(200)).body.data.session.token);

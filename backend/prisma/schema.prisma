@@ -846,15 +846,18 @@ model GroupMember {
   userId      String            @db.Uuid
   displayName String            @db.VarChar(80)
   isOrganizer Boolean           @default(false)
+  isGuest     Boolean           @default(false)
+  accountId   String?           @db.Uuid
   status      GroupMemberStatus @default(ACTIVE)
   joinedAt    DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
   group       GroupOrder        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user        User?             @relation(fields: [accountId], references: [id], onDelete: Restrict)
   items       GroupCartItem[]
 
   @@id([groupId, userId])
   @@index([userId])
+  @@index([accountId])
 }
 
 model GroupCartItem {

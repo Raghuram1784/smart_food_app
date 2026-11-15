@@ -26,9 +26,12 @@ class AddGroupItemInput {
   @IsOptional() @IsUUID() variantId?: string;
   @IsArray() @ArrayMaxSize(10) @ArrayUnique() @IsUUID('all', { each: true }) addOnIds: string[] = [];
   @IsInt() @Min(1) expectedRevision!: number;
+  @IsOptional() @IsUUID() forMemberId?: string;
 }
+class GuestInput { @IsString() @Length(1, 40) @Matches(/\S/) name!: string; @IsInt() @Min(1) expectedVersion!: number; }
 class UpdateGroupItemInput { @IsInt() @Min(1) @Max(20) quantity!: number; @IsInt() @Min(1) expectedRevision!: number; }
 class RevisionQuery { @Type(() => Number) @IsInt() @Min(1) expectedRevision!: number; }
+class VersionQuery { @Type(() => Number) @IsInt() @Min(1) expectedVersion!: number; }
 class VersionInput { @IsInt() @Min(1) expectedVersion!: number; }
 class ProposeInput { @IsInt() @Min(100) @Max(100_000_000) proposedTotalPaise!: number; @IsInt() @Min(1) expectedVersion!: number; }
 class CounterAnswerInput { @IsIn(['accept', 'decline']) answer!: 'accept' | 'decline'; @IsInt() @Min(1) expectedVersion!: number; }
@@ -53,6 +56,8 @@ class GroupController {
   @Delete(':id/items/:itemId') remove(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('itemId', ParseUUIDPipe) itemId: string, @Query() q: RevisionQuery) { return this.groups.removeItem(p, id, itemId, Number(q.expectedRevision)); }
   @Patch(':id/items/:itemId/share') share(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('itemId', ParseUUIDPipe) itemId: string, @Body() b: ShareInput) { return this.groups.shareItem(p, id, itemId, b); }
   @Post(':id/split') @HttpCode(200) split(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: SplitInput) { return this.groups.setSplitMethod(p, id, b); }
+  @Post(':id/guests') @HttpCode(200) addGuest(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: GuestInput) { return this.groups.addGuest(p, id, b); }
+  @Delete(':id/guests/:guestId') removeGuest(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Param('guestId', ParseUUIDPipe) guestId: string, @Query() q: VersionQuery) { return this.groups.removeGuest(p, id, guestId, Number(q.expectedVersion)); }
   @Post(':id/leave') @HttpCode(200) leave(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string) { return this.groups.leave(p, id); }
   @Post(':id/lock') @HttpCode(200) lock(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: VersionInput) { return this.groups.lock(p, id, b.expectedVersion); }
   @Post(':id/unlock') @HttpCode(200) unlock(@CurrentUser() p: AuthenticatedPrincipal, @Param('id', ParseUUIDPipe) id: string, @Body() b: VersionInput) { return this.groups.unlock(p, id, b.expectedVersion); }

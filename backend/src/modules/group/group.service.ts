@@ -8,7 +8,7 @@
  * menu prices, fees and tax are never altered. Sockets only nudge clients to refetch.
  */
 import { ConflictException, ForbiddenException, GoneException, HttpException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { createHash, randomBytes, randomInt } from 'node:crypto';
+import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../../database/database.module';
 import { Prisma } from '../../generated/prisma/client';
 import type { AuthenticatedPrincipal } from '../auth/auth.types';
@@ -89,7 +89,7 @@ export class GroupService {
   }
 
   private member(g: LoadedGroup, userId: string) {
-    const m = g.members.find((x) => x.userId === userId && x.status === 'ACTIVE');
+    const m = g.members.find((x) => x.userId === userId && x.status === 'ACTIVE' && !x.isGuest);
     if (!m) throw new NotFoundException('Group not found'); // never reveal groups to non-members
     return m;
   }
@@ -144,7 +144,8 @@ export class GroupService {
       if (restaurant) this.gateway.notify(['restaurant:' + g.restaurantId], 'group.proposals', { groupId: g.id, event });
     });
   }
-  private activeIds(g: LoadedGroup) { return g.members.filter((m) => m.status === 'ACTIVE').map((m) => m.userId); }
+  /** Account holders to notify (guests have no device or session). */
+  private activeIds(g: LoadedGroup) { return g.members.filter((m) => m.status === 'ACTIVE' && !m.isGuest).map((m) => m.userId); }
 
   // ---------------------------------------------------------------- presentation
   private async present(tx: Tx, g: LoadedGroup, viewerId: string) {
@@ -160,12 +161,14 @@ export class GroupService {
       } catch (e) { pricingError = e instanceof HttpException ? (e.getResponse() as any)?.message ?? e.message : 'Price unavailable right now'; }
     }
     const names = new Map(g.members.map((m) => [m.userId, m.displayName]));
+    const guests = new Set(g.members.filter((m) => m.isGuest && m.status === 'ACTIVE').map((m) => m.userId));
     const items = g.items.map((i) => {
       const l = lines.get(i.id);
       return { id: i.id, memberId: i.memberId, memberName: names.get(i.memberId) ?? 'Member', mine: i.memberId === viewerId, menuItemId: i.menuItemId, name: i.menuItem.name,
         imageKey: i.menuItem.imageKey, isVegetarian: i.menuItem.isVegetarian, available: i.menuItem.availabilityStatus === 'AVAILABLE', quantity: i.quantity, version: i.version,
         variant: l?.variant ?? null, addOns: l?.addOns ?? [], lineTotalPaise: l?.lineTotalPaise ?? i.unitPricePaise * i.quantity,
         sharedWith: i.sharedWith.filter((u) => names.has(u)), sharedWithNames: i.sharedWith.filter((u) => names.has(u)).map((u) => names.get(u)!),
+        forGuest: guests.has(i.memberId), canEdit: i.memberId === viewerId || (g.organizerId === viewerId && guests.has(i.memberId)),
         canShare: i.memberId === viewerId || g.organizerId === viewerId };
     });
     const contributions = g.members.filter((m) => m.status === 'ACTIVE').map((m) => ({ userId: m.userId, name: m.displayName,
@@ -185,7 +188,7 @@ export class GroupService {
       id: g.id, name: g.name, status: g.status, version: g.version, cartRevision: g.cartRevision, expiresAt: g.expiresAt, orderId: g.orderId,
       restaurant: { id: g.restaurant.id, name: restaurantName, imageKey: g.restaurant.imageKey, locality: g.restaurant.locality?.name ?? null, open: g.restaurant.operatingStatus === 'OPEN' && g.restaurant.deliveryAvailability, negotiationEnabled: g.restaurant.groupNegotiationEnabled },
       organizerId: g.organizerId, isOrganizer,
-      members: g.members.filter((m) => m.status === 'ACTIVE').map((m) => ({ userId: m.userId, name: m.displayName, isOrganizer: m.isOrganizer, isYou: m.userId === viewerId })),
+      members: g.members.filter((m) => m.status === 'ACTIVE').map((m) => ({ userId: m.userId, name: m.displayName, isOrganizer: m.isOrganizer, isGuest: m.isGuest, isYou: m.userId === viewerId })),
       items, contributions, pricing, pricingError,
       memberCount: contributions.length,
       proposal: live ? showProposal(live) : latest ? showProposal(latest) : null,
@@ -196,6 +199,7 @@ export class GroupService {
         canPropose: isOrganizer && ['LOCKED', 'REJECTED'].includes(g.status) && g.proposalAttempts < GROUP_RULES.maxProposalsPerGroup,
         canRespondToCounter: isOrganizer && g.status === 'COUNTERED', canCheckout: isOrganizer && g.status === 'ACCEPTED', canLeave: !isOrganizer && ['OPEN', 'LOCKED'].includes(g.status),
         canCancel: isOrganizer && !['ORDERED', 'CANCELED', 'EXPIRED'].includes(g.status), canInvite: isOrganizer && g.status === 'OPEN',
+        canManageGuests: isOrganizer && g.status === 'OPEN',
       },
       paymentNote: 'The organizer pays the final order total. Individual amounts are for information only.',
       split: g.status === 'ORDERED' && g.splitSnapshot ? g.splitSnapshot : quoteForSplit ? this.computeSplit(g, quoteForSplit) : null,
@@ -233,7 +237,7 @@ export class GroupService {
       const g = await tx.groupOrder.create({ data: {
         organizerId: p.userId, restaurantId: input.restaurantId, addressId: address.id, localityId: address.localityId, name: input.name?.trim() || null,
         inviteTokenHash: inv.tokenHash, joinCodeHash: inv.codeHash, expiresAt: new Date(Date.now() + minutes * 60_000),
-        members: { create: { userId: p.userId, displayName: user.displayName.slice(0, 80), isOrganizer: true } },
+        members: { create: { userId: p.userId, accountId: p.userId, displayName: (user.displayName.trim() || 'Organizer').slice(0, 80), isOrganizer: true } },
       }, include: groupInclude });
       return { invite: this.invitePayload(g.id, inv), group: await this.present(tx, g, p.userId) };
     });
@@ -273,7 +277,7 @@ export class GroupService {
       if (g.members.filter((m) => m.status === 'ACTIVE').length >= GROUP_RULES.maxMembers) throw new ConflictException('This group is full');
       const user = await tx.user.findUniqueOrThrow({ where: { id: p.userId }, select: { displayName: true } });
       if (existing) await tx.groupMember.update({ where: { groupId_userId: { groupId: g.id, userId: p.userId } }, data: { status: 'ACTIVE' } });
-      else await tx.groupMember.create({ data: { groupId: g.id, userId: p.userId, displayName: user.displayName.slice(0, 80) } });
+      else await tx.groupMember.create({ data: { groupId: g.id, userId: p.userId, accountId: p.userId, displayName: (user.displayName.trim() || 'Friend').slice(0, 80) } });
       await tx.groupOrder.update({ where: { id: g.id }, data: { version: { increment: 1 } } });
       return { g: await tx.groupOrder.findUniqueOrThrow({ where: { id: g.id }, include: groupInclude }), joined: true };
     });
@@ -283,7 +287,7 @@ export class GroupService {
 
   async mine(p: AuthenticatedPrincipal) {
     const groups = await this.database.client.groupOrder.findMany({
-      where: { members: { some: { userId: p.userId, status: 'ACTIVE' } }, status: { notIn: ['CANCELED'] } },
+      where: { members: { some: { userId: p.userId, accountId: p.userId, status: 'ACTIVE' } }, status: { notIn: ['CANCELED'] } },
       orderBy: { createdAt: 'desc' }, take: 20, include: { restaurant: { select: { name: true } }, members: { where: { status: 'ACTIVE' }, select: { userId: true } } },
     });
     return groups.map((g) => ({ id: g.id, name: g.name, status: g.expiresAt <= new Date() && !['ORDERED', 'CANCELED'].includes(g.status) ? 'EXPIRED' : g.status, restaurantName: g.restaurant.name, memberCount: g.members.length, isOrganizer: g.organizerId === p.userId, expiresAt: g.expiresAt, orderId: g.orderId }));
@@ -298,10 +302,11 @@ export class GroupService {
   }
 
   // ---------------------------------------------------------------- customer: shared cart
-  async addItem(p: AuthenticatedPrincipal, id: string, input: { menuItemId: string; quantity: number; variantId?: string; addOnIds: string[]; expectedRevision: number }) {
+  async addItem(p: AuthenticatedPrincipal, id: string, input: { menuItemId: string; quantity: number; variantId?: string; addOnIds: string[]; expectedRevision: number; forMemberId?: string }) {
     const g = await this.run(p, 'CUSTOMER', async (tx) => {
       const g = await this.lockGroup(tx, id);
       this.member(g, p.userId);
+      const owner = this.itemOwner(g, p.userId, input.forMemberId);
       this.status(g, ['OPEN'], 'The group is locked. Ask the organizer to reopen it to change food.');
       this.version(g, input.expectedRevision, 'cartRevision');
       const item = await tx.menuItem.findUnique({ where: { id: input.menuItemId }, include: itemInclude });
@@ -311,10 +316,10 @@ export class GroupService {
       const addOnIds = [...new Set(input.addOnIds)].sort();
       const key = digest({ menuItemId: item.id, variantId: sel.variant?.id ?? null, addOnIds });
       const unit = item.basePricePaise + (sel.variant?.priceAdjustmentPaise ?? 0) + sel.addOns.reduce((n, a) => n + a.pricePaise, 0);
-      const existing = await tx.groupCartItem.findUnique({ where: { groupId_memberId_selectionKey: { groupId: g.id, memberId: p.userId, selectionKey: key } } });
+      const existing = await tx.groupCartItem.findUnique({ where: { groupId_memberId_selectionKey: { groupId: g.id, memberId: owner, selectionKey: key } } });
       const quantity = Math.min(20, (existing?.quantity ?? 0) + input.quantity);
       if (existing) await tx.groupCartItem.update({ where: { id: existing.id }, data: { quantity, unitPricePaise: unit, version: { increment: 1 } } });
-      else await tx.groupCartItem.create({ data: { groupId: g.id, memberId: p.userId, restaurantId: g.restaurantId, menuItemId: item.id, variantId: sel.variant?.id ?? null, addOnIds, selectionKey: key, quantity, unitPricePaise: unit } });
+      else await tx.groupCartItem.create({ data: { groupId: g.id, memberId: owner, restaurantId: g.restaurantId, menuItemId: item.id, variantId: sel.variant?.id ?? null, addOnIds, selectionKey: key, quantity, unitPricePaise: unit } });
       await tx.groupOrder.update({ where: { id: g.id }, data: { cartRevision: { increment: 1 }, version: { increment: 1 } } });
       return tx.groupOrder.findUniqueOrThrow({ where: { id: g.id }, include: groupInclude });
     });
@@ -336,7 +341,8 @@ export class GroupService {
       this.version(g, expectedRevision, 'cartRevision');
       const item = g.items.find((i) => i.id === itemId);
       if (!item) throw new NotFoundException('Item not found in this group');
-      if (item.memberId !== p.userId) throw new ForbiddenException('You can only change your own selections');
+      const guestItem = g.organizerId === p.userId && g.members.some((m) => m.userId === item.memberId && m.isGuest && m.status === 'ACTIVE');
+      if (item.memberId !== p.userId && !guestItem) throw new ForbiddenException('You can only change your own selections');
       await change(tx);
       await tx.groupOrder.update({ where: { id: g.id }, data: { cartRevision: { increment: 1 }, version: { increment: 1 } } });
       return tx.groupOrder.findUniqueOrThrow({ where: { id: g.id }, include: groupInclude });
@@ -359,6 +365,40 @@ export class GroupService {
     });
     this.notify(g, [...this.activeIds(g), p.userId], 'MEMBER_LEFT');
     return { left: true };
+  }
+
+  /** Whose line a new dish is: the caller's own, or (organizer only) a guest participant's. */
+  private itemOwner(g: LoadedGroup, userId: string, forMemberId?: string) {
+    if (!forMemberId || forMemberId === userId) return userId;
+    if (g.organizerId !== userId) throw new ForbiddenException('Only the organizer can add food for someone else');
+    const target = g.members.find((m) => m.userId === forMemberId && m.status === 'ACTIVE');
+    if (!target) throw new UnprocessableEntityException('Choose someone who is in this group');
+    if (!target.isGuest) throw new ForbiddenException('Friends who joined with their own account add their own food');
+    return target.userId;
+  }
+
+  // ---------------------------------------------------------------- customer: "Order for friends" (one phone)
+  async addGuest(p: AuthenticatedPrincipal, id: string, input: { name: string; expectedVersion: number }) {
+    const name = input.name.trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!name) throw new UnprocessableEntityException('Enter a name');
+    return this.organizerTransition(p, id, input.expectedVersion, ['OPEN'], 'People can only be added while the group is open', async (tx, g) => {
+      const active = g.members.filter((m) => m.status === 'ACTIVE');
+      if (active.length >= GROUP_RULES.maxMembers) throw new ConflictException(`A group can have up to ${GROUP_RULES.maxMembers} people`);
+      if (active.some((m) => m.displayName.toLowerCase() === name.toLowerCase())) throw new ConflictException(`${name} is already in this group`);
+      await tx.groupMember.create({ data: { groupId: g.id, userId: randomUUID(), accountId: null, isGuest: true, displayName: name } });
+      await tx.groupOrder.update({ where: { id: g.id }, data: { version: { increment: 1 } } });
+    }, 'MEMBER_JOINED');
+  }
+
+  async removeGuest(p: AuthenticatedPrincipal, id: string, guestId: string, expectedVersion: number) {
+    return this.organizerTransition(p, id, expectedVersion, ['OPEN'], 'People can only be removed while the group is open', async (tx, g) => {
+      const guest = g.members.find((m) => m.userId === guestId && m.status === 'ACTIVE' && m.isGuest);
+      if (!guest) throw new NotFoundException('Person not found in this group');
+      const hadItems = g.items.some((i) => i.memberId === guestId);
+      await tx.groupCartItem.deleteMany({ where: { groupId: g.id, memberId: guestId } });
+      await tx.groupMember.update({ where: { groupId_userId: { groupId: g.id, userId: guestId } }, data: { status: 'LEFT' } });
+      await tx.groupOrder.update({ where: { id: g.id }, data: { version: { increment: 1 }, ...(hadItems ? { cartRevision: { increment: 1 } } : {}) } });
+    }, 'MEMBER_LEFT');
   }
 
   async lock(p: AuthenticatedPrincipal, id: string, expectedVersion: number) {
