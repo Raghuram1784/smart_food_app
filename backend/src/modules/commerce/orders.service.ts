@@ -1,3 +1,4 @@
+import {reserveSchedule,scheduleRequest,scheduleIndicator,preparationAllowed} from '../scheduling/schedule.policy';
 import {queueEvent} from '../operations/operations.service';
 import {ConflictException,ForbiddenException,Inject,Injectable,NotFoundException} from '@nestjs/common';
 import {randomBytes} from 'node:crypto';
@@ -14,7 +15,7 @@ export class OrdersService {
   place(p:AuthenticatedPrincipal,input:PlaceOrderInput){
     if(input.paymentMethod==='RAZORPAY_TEST'){paymentConfig();}
     else if(!['development','test'].includes(process.env.NODE_ENV??'')||process.env.DEMO_CHECKOUT_ENABLED!=='true')throw new ForbiddenException('No approved payment method is configured');
-    const requestHash=digest({cartId:input.cartId,addressId:input.addressId,quoteId:input.quoteId,paymentMethod:input.paymentMethod});
+    const requestHash=digest({cartId:input.cartId,addressId:input.addressId,quoteId:input.quoteId,paymentMethod:input.paymentMethod,...scheduleRequest(input)});
     return this.store.run(p,async tx=>{
       const prior=await tx.order.findUnique({where:{customerId_idempotencyKey:{customerId:p.userId,idempotencyKey:input.idempotencyKey}},include:orderInclude});
       if(prior){if(prior.requestHash!==requestHash)throw new ConflictException('Idempotency key already used with different checkout details');return this.publicOrder(prior);}
@@ -24,7 +25,8 @@ export class OrdersService {
       if(!quote||quote.cartVersion!==cart.version||quote.expiresAt<=new Date())throw new ConflictException('Quote expired or cart changed. Review a fresh quote before placing your order.');
       const current=await this.pricing.calculate(tx,cart,input.addressId,quote.promotion??undefined);
       if(current.fingerprint!==quote.fingerprint)throw new ConflictException('Price or delivery details changed. Review a fresh quote and confirm again.');
-      const order=await tx.order.create({data:{orderNumber:'FD-'+randomBytes(10).toString('hex').toUpperCase(),customerId:p.userId,restaurantId:cart.restaurantId!,restaurantName:cart.restaurant!.name,
+      const schedule=await reserveSchedule(tx,cart.restaurantId!,input);
+      const order=await tx.order.create({data:{...schedule,orderNumber:'FD-'+randomBytes(10).toString('hex').toUpperCase(),customerId:p.userId,restaurantId:cart.restaurantId!,restaurantName:cart.restaurant!.name,
         cartId:cart.id,cartVersion:cart.version,idempotencyKey:input.idempotencyKey,requestHash,deliveryAddressSnapshot:json(current.address),paymentMethod:input.paymentMethod,status:input.paymentMethod==='RAZORPAY_TEST'?'AWAITING_PAYMENT':'PENDING_RESTAURANT',
         itemSubtotalPaise:current.basePaise,customizationTotalPaise:current.variantPaise+current.addOnPaise,packagingPaise:current.packagingPaise,deliveryPaise:current.deliveryPaise,platformPaise:current.platformPaise,discountPaise:current.discountPaise,taxPaise:current.taxPaise,finalPayablePaise:current.finalPayablePaise,
         pricingPolicyVersion:current.pricingPolicyVersion,pricingSnapshot:json(current),
@@ -38,7 +40,8 @@ export class OrdersService {
     });
   }
   publicOrder(order:Prisma.OrderGetPayload<{include:typeof orderInclude}> & {paymentAttempts?:any[]},owner=false){
-    const {idempotencyKey,requestHash,customerId,pricingSnapshot,...safe}=order;
+    const {idempotencyKey,requestHash,customerId,pricingSnapshot,paymentAttempts,...raw}=order;
+    const safe={...raw,scheduleIndicator:scheduleIndicator(order)};
     if(owner){
       const {deliveryAddressSnapshot,...withoutPii}=safe;
       const actions: string[] = [];
@@ -49,7 +52,7 @@ export class OrdersService {
       if (order.status === 'PENDING_RESTAURANT') {
         if (isEligible) actions.push('accept');
         actions.push('reject');
-      } else if (order.status === 'ACCEPTED') {
+      } else if (order.status === 'ACCEPTED' && preparationAllowed(order)) {
         actions.push('start-preparing');
       } else if (order.status === 'PREPARING') {
         actions.push('ready');
@@ -69,7 +72,7 @@ export class OrdersService {
   inbox(p:AuthenticatedPrincipal,restaurantId:string,page:OrderPage){return this.store.database.client.$transaction(async tx=>{
     const member=await tx.restaurantMembership.findFirst({where:{userId:p.userId,restaurantId,status:'ACTIVE',membershipRole:'OWNER'}});
     if(!member)throw new ForbiddenException('No active owner membership for this restaurant');
-    const where={restaurantId};
+    const where={restaurantId,...(page.deliveryMode?{deliveryMode:page.deliveryMode,status:{notIn:['CANCELED','REJECTED','DELIVERED'] as any}}:{})};
     const items=await tx.order.findMany({where,include:{...orderInclude,paymentAttempts:true},orderBy:[{createdAt:'desc'},{id:'desc'}],skip:(page.page-1)*page.limit,take:page.limit});
     return {items:items.map(o=>this.publicOrder(o,true)),total:await tx.order.count({where}),pendingCount:await tx.order.count({where:{restaurantId,status:'PENDING_RESTAURANT'}}),...page};
   },{isolationLevel:'RepeatableRead'});}

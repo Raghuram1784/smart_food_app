@@ -1,3 +1,4 @@
+import {preparationAllowed,dispatchAllowed,scheduleIndicator} from '../scheduling/schedule.policy';
 import {ConflictException,ForbiddenException,Inject,Injectable,NotFoundException,UnauthorizedException} from '@nestjs/common';
 import {DatabaseService} from '../../database/database.module';
 import {AuthenticatedPrincipal} from '../auth/auth.types';
@@ -42,9 +43,9 @@ export class OperationsService {
   present(o:any,role:string){
     const {paymentAttempts,requestHash,idempotencyKey,pricingSnapshot,customerId,...safe}=o;
     if(role!=='CUSTOMER'&&role!=='DELIVERY_PARTNER')delete safe.deliveryAddressSnapshot;
-    const actions=Object.entries(transitions).filter(([action,t])=>t.role===role&&t.from===o.status&&(action!=='accept'||eligible(o))).map(([a])=>a);
+    const actions=Object.entries(transitions).filter(([action,t])=>t.role===role&&t.from===o.status&&(action!=='accept'||eligible(o))&&(action!=='start-preparing'||preparationAllowed(o))).map(([a])=>a);
     if(role==='DELIVERY_PARTNER'&&o.status==='OUT_FOR_DELIVERY')actions.push('arrived','complete-handover');
-    return {...safe,availableActions:actions,paymentEligible:eligible(o)};
+    return {...safe,scheduleIndicator:scheduleIndicator(o),availableActions:actions,paymentEligible:eligible(o)};
   }
   async detail(p:AuthenticatedPrincipal,id:string,role:string){return this.database.client.$transaction(async tx=>{
     const o=await tx.order.findUnique({where:{id},include:operationInclude});if(!o)throw new NotFoundException('Order not found');await this.access(tx,p,o,role);return this.present(o,role);
@@ -67,6 +68,8 @@ export class OperationsService {
       const role=action==='assign'?'ADMIN':rule.role;await this.access(tx,p,o,role);
       if(o.version!==expectedVersion)throw new ConflictException('Order changed. Refresh before retrying.');
       if(o.status!==(action==='assign'?'READY_FOR_PICKUP':rule.from))throw new ConflictException('This action is not available at the current order status');
+      if(['start-preparing','ready'].includes(action)&&!preparationAllowed(o))throw new ConflictException('Scheduled preparation is not due yet');
+      if(action==='assign'&&!dispatchAllowed(o))throw new ConflictException('Scheduled pickup invitations are not due yet');
       if(action==='accept'&&!eligible(o))throw new ConflictException('Verified captured payment or explicitly enabled development fulfillment is required');
       if(action==='reject'&&(!reason||reason.trim().length<5))throw new ConflictException('Provide a rejection reason of at least 5 characters');
       if(action==='assign'){

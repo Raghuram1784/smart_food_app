@@ -47,6 +47,11 @@ model Locality {
 }
 
 model Restaurant {
+  scheduleOpenMinute Int @default(540)
+  scheduleCloseMinute Int @default(1380)
+  schedulePrepMinutes Int @default(20)
+  scheduleCapacity Int @default(4)
+  scheduleWeekdays Int[] @default([0,1,2,3,4,5,6])
   carts                       Cart[]
   orders                      Order[]
   id                          String                   @id @db.VarChar(64)
@@ -467,6 +472,16 @@ model CartQuote {
 }
 
 model Order {
+  deliveryMode String @default("NOW") @db.VarChar(16)
+  scheduledDeliveryAt DateTime? @db.Timestamptz(3)
+  deliveryWindowStart DateTime? @db.Timestamptz(3)
+  deliveryWindowEnd DateTime? @db.Timestamptz(3)
+  preparationStartAt DateTime? @db.Timestamptz(3)
+  expectedPickupAt DateTime? @db.Timestamptz(3)
+  dispatchReleaseAt DateTime? @db.Timestamptz(3)
+  actualDeliveryAt DateTime? @db.Timestamptz(3)
+  @@index([deliveryMode, status, preparationStartAt])
+  @@index([restaurantId, scheduledDeliveryAt, status])
   handover                DeliveryHandover?
   deliveryOffers          DeliveryOffer[]
   version                 Int                 @default(1)

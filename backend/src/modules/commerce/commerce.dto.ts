@@ -17,7 +17,11 @@ export class QuoteCartInput extends VersionInput {
   @IsUUID() addressId!:string;
   @IsOptional() @IsString() @Matches(/^[A-Z0-9_-]{1,80}$/) promotion?:string;
 }
-export class PlaceOrderInput {
+export class ScheduleDeliveryInput {
+  @IsOptional() @IsIn(['NOW','SCHEDULED']) deliveryMode?:'NOW'|'SCHEDULED';
+  @IsOptional() @IsString() @Length(20,24) scheduledDeliveryAt?:string;
+}
+export class PlaceOrderInput extends ScheduleDeliveryInput {
   @IsUUID() cartId!:string;
   @IsUUID() addressId!:string;
   @IsUUID() quoteId!:string;
@@ -45,6 +49,7 @@ export class AddressInput {
 export class UuidParam { @IsUUID() id!:string; }
 export class RestaurantParam { @IsString() @Matches(/^[a-z0-9-]{1,64}$/) restaurantId!:string; }
 export class OrderPage {
+  @IsOptional() @IsIn(['SCHEDULED']) deliveryMode?:'SCHEDULED';
   @Type(()=>Number) @IsInt() @Min(1) @Max(10000) page=1;
   @Type(()=>Number) @IsInt() @Min(1) @Max(30) limit=10;
 }
