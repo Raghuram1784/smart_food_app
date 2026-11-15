@@ -1,8 +1,25 @@
 import {Injectable,ServiceUnavailableException} from '@nestjs/common';
+/** Razorpay TEST mode runs in development/test, or in production only with an explicit opt-in.
+ * Only rzp_test_ keys are ever accepted, so no deployment can collect real money through this path. */
+export function testPaymentsAllowed(){
+  const env=process.env.NODE_ENV??'';
+  return ['development','test'].includes(env)||(env==='production'&&process.env.PAYMENTS_TEST_MODE_ENABLED==='true');
+}
+/** No-payment demo checkout: development/test only, never production. */
+export function demoCheckoutAllowed(){
+  return ['development','test'].includes(process.env.NODE_ENV??'')&&process.env.DEMO_CHECKOUT_ENABLED==='true';
+}
 export function paymentConfig(){
   const keyId=process.env.RAZORPAY_KEY_ID??'',secret=process.env.RAZORPAY_KEY_SECRET??'';
-  if(!['development','test'].includes(process.env.NODE_ENV??'')||!/^rzp_test_[A-Za-z0-9]+$/.test(keyId)||!secret)throw new ServiceUnavailableException('Razorpay Test Mode is not configured');
+  if(!testPaymentsAllowed()||!/^rzp_test_[A-Za-z0-9]+$/.test(keyId)||!secret)throw new ServiceUnavailableException('Razorpay Test Mode is not configured');
   return {keyId,secret};
+}
+/** What checkout may offer right now. Never includes key material. */
+export function paymentMethods(){
+  let razorpayTest=false;
+  try{paymentConfig();razorpayTest=true;}catch{}
+  const methods=[...(razorpayTest?['RAZORPAY_TEST']:[]),...(demoCheckoutAllowed()?['DEMO_NO_PAYMENT']:[])];
+  return {methods,razorpayTest,demoCheckout:demoCheckoutAllowed(),testModeOnly:true};
 }
 export type ProviderOrder={id:string;amount:number;currency:string;receipt:string;status:string};
 export type ProviderPayment={id:string;order_id:string;amount:number;currency:string;status:string;captured:boolean};

@@ -88,7 +88,7 @@ class _PaymentPanelState extends ConsumerState<PaymentPanel>
         'order_id': config['providerOrderId'],
         'amount': config['amount'],
         'currency': config['currency'],
-        'name': 'Smart Food · TEST',
+        'name': 'SAMORI · TEST',
         'description': 'Test payment only',
         'retry': {'enabled': false},
       });

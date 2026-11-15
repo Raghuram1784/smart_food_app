@@ -1071,6 +1071,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   bool testPayment = false;
   bool busy = false, stale = false;
+
+  /// Razorpay TEST is used when the user picks it, or when it is the only
+  /// method the server accepts (hosted builds refuse demo checkout).
+  bool get useTestPayment {
+    final m =
+        ref.read(paymentMethodsProvider).asData?.value ??
+        PaymentMethods.unknown;
+    return m.onlyTest || (testPayment && m.razorpayTest);
+  }
   String? error;
 
   Future<void> submit() async {
@@ -1087,7 +1096,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         'addressId': q['addressId'],
         'quoteId': q['quoteId'],
         'idempotencyKey': keyValue,
-        'paymentMethod': testPayment ? 'RAZORPAY_TEST' : 'DEMO_NO_PAYMENT',
+        'paymentMethod': useTestPayment ? 'RAZORPAY_TEST' : 'DEMO_NO_PAYMENT',
         ...schedule!,
       });
       if (!mounted) return;
@@ -1120,6 +1129,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final methods =
+        ref.watch(paymentMethodsProvider).asData?.value ??
+        PaymentMethods.unknown;
+    final payWithTest =
+        methods.onlyTest || (testPayment && methods.razorpayTest);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final q = widget.quote;
@@ -1340,14 +1354,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 12),
           OrderBill(q, title: 'Order bill'),
-          SwitchListTile(
-            title: const Text('Razorpay Test Payment'),
-            subtitle: const Text('Test mode only · no real money'),
-            value: testPayment,
-            onChanged: busy
-                ? null
-                : (value) => setState(() => testPayment = value),
-          ),
+          if (methods.choice)
+            SwitchListTile(
+              title: const Text('Razorpay Test Payment'),
+              subtitle: const Text('Test mode only · no real money'),
+              value: testPayment,
+              onChanged: busy
+                  ? null
+                  : (value) => setState(() => testPayment = value),
+            ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(14),
@@ -1370,14 +1385,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        testPayment
-                            ? 'Test checkout · Payment required'
+                        payWithTest
+                            ? 'Razorpay TEST checkout · Payment required'
                             : 'Demo checkout · Unpaid',
                         style: theme.textTheme.labelLarge,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        testPayment
+                        payWithTest
                             ? 'Your order is saved first. Open Razorpay TEST on the confirmation screen to pay.'
                             : 'No real payment is collected. Your order records as unpaid and awaits restaurant action.',
                         style: theme.textTheme.bodySmall,

@@ -6,11 +6,12 @@ import {AuthenticatedPrincipal} from '../auth/auth.types';
 import {CommerceStore} from '../commerce/commerce.store';
 import {UuidParam} from '../commerce/commerce.dto';
 import {PaymentsService} from './payments.service';
-import {PaymentProvider,RazorpayProvider} from './razorpay.provider';
+import {PaymentProvider,RazorpayProvider,paymentMethods} from './razorpay.provider';
 import {PaymentOrderInput,PaymentVerifyInput} from './payments.dto';
 @Controller('payments') @UseGuards(AuthGuard,RolesGuard) @Roles('CUSTOMER')
 class PaymentsController {
   constructor(@Inject(PaymentsService) readonly service:PaymentsService){}
+  @Get('methods') methods(){return paymentMethods();}
   @Post('razorpay/create-order') @HttpCode(200) create(@CurrentUser() p:AuthenticatedPrincipal,@Body() input:PaymentOrderInput){return this.service.create(p,input.orderId);}
   @Post('razorpay/verify') @HttpCode(200) verify(@CurrentUser() p:AuthenticatedPrincipal,@Body() input:PaymentVerifyInput){return this.service.verify(p,input);}
   @Get('orders/:id/status') status(@CurrentUser() p:AuthenticatedPrincipal,@Param() ids:UuidParam){return this.service.status(p,ids.id);}
