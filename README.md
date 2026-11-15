@@ -5,7 +5,7 @@
 ### *Every choice, made with care.*
 
 **A real-time, AI-assisted food delivery platform for Hyderabad**
-Built by **Team NeuroX** for the **Accurate AI Hackathon**
+Built by **Team NeuroX** for the **Accurate Background Hackathon 2026**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
@@ -13,6 +13,11 @@ Built by **Team NeuroX** for the **Accurate AI Hackathon**
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-realtime-010101?logo=socketdotio&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Google-Gemini-8E75B2?logo=googlegemini&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-315%20passing-2E7D32)
+![Render](https://img.shields.io/badge/API-live%20on%20Render%20(staging)-46E3B7?logo=render&logoColor=white)
+
+<img src="docs/screenshots/app/customer-home.jpg" alt="Home" width="19%"> <img src="docs/screenshots/app/customer-ai-results.jpg" alt="AI Smart Food Finder" width="19%"> <img src="docs/screenshots/app/customer-split-by-person.jpg" alt="Bill split" width="19%"> <img src="docs/screenshots/app/customer-schedule-slot.jpg" alt="Scheduled delivery" width="19%"> <img src="docs/screenshots/app/customer-live-tracking.jpg" alt="Live tracking" width="19%">
+
+**[Features](#what-samori-does) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Run it](#run-it-locally) · [Tests](#testing-evidence) · [Deployment](#deployment-status) · [Team](#team-neurox)**
 
 </div>
 
@@ -60,9 +65,74 @@ SAMORI is one Flutter app with four roles: **Customer**, **Restaurant Owner**, *
 
 ## Screenshots
 
-All images are real screenshots of the running app, mostly from a Samsung S23 Ultra. Personal data, addresses, phone numbers and map locations are redacted.
+All images are real screenshots of the running app on a Samsung S23 Ultra. Status bars are cropped; personal data, addresses, phone numbers and the map background are redacted or blurred. No OTP values are shown.
 
-### Customer
+### 🛒 Customer
+
+**Discovery and AI Smart Food Finder**
+
+<table>
+<tr>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-home.jpg" alt="Home and discovery" width="200"><br><sub>Home and discovery</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-restaurant-menu.jpg" alt="Menu with calories and protein" width="200"><br><sub>Menu with calories and protein</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-ai-request.jpg" alt="Natural-language request" width="200"><br><sub>Natural-language request</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-ai-results.jpg" alt="Priced on total payable" width="200"><br><sub>Priced on total payable</sub></td>
+</tr>
+</table>
+
+**Group ordering, negotiation and bill splitting**
+
+<table>
+<tr>
+<td align="center" width="20%"><img src="docs/screenshots/app/customer-group-people.jpg" alt="Order for friends by name" width="200"><br><sub>Order for friends by name</sub></td>
+<td align="center" width="20%"><img src="docs/screenshots/app/customer-group-cart.jpg" alt="Shared group cart" width="200"><br><sub>Shared group cart</sub></td>
+<td align="center" width="20%"><img src="docs/screenshots/app/customer-negotiation-counter.jpg" alt="Restaurant counteroffer" width="200"><br><sub>Restaurant counteroffer</sub></td>
+<td align="center" width="20%"><img src="docs/screenshots/app/customer-split-by-person.jpg" alt="Split by person" width="200"><br><sub>Split by person</sub></td>
+<td align="center" width="20%"><img src="docs/screenshots/app/customer-split-equal.jpg" alt="Split equally" width="200"><br><sub>Split equally</sub></td>
+</tr>
+</table>
+
+**Scheduled delivery, live tracking and secure handover**
+
+<table>
+<tr>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-schedule-slot.jpg" alt="Ten-minute target window" width="200"><br><sub>Ten-minute target window</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-scheduled-delivered.jpg" alt="Delivered within window" width="200"><br><sub>Delivered within window</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-live-tracking.jpg" alt="Live rider map and ETA" width="200"><br><sub>Live rider map and ETA</sub></td>
+<td align="center" width="25%"><img src="docs/screenshots/app/customer-otp-verified.jpg" alt="OTP-verified delivery" width="200"><br><sub>OTP-verified delivery</sub></td>
+</tr>
+</table>
+
+### 🍳 Restaurant owner
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/app/owner-dashboard-scheduled.jpg" alt="Dashboard with scheduled orders" width="200"><br><sub>Dashboard with scheduled orders</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/app/owner-incoming-order.jpg" alt="Incoming order" width="200"><br><sub>Incoming order</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/app/owner-kitchen.jpg" alt="Kitchen operations" width="200"><br><sub>Kitchen operations</sub></td>
+</tr>
+</table>
+
+### 🛵 Delivery partner
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/app/rider-invitation.jpg" alt="Automatic invitation" width="200"><br><sub>Automatic invitation</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/app/rider-active-delivery.jpg" alt="Active delivery (redacted)" width="200"><br><sub>Active delivery (redacted)</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/app/rider-out-for-delivery.jpg" alt="Out for delivery (redacted)" width="200"><br><sub>Out for delivery (redacted)</sub></td>
+</tr>
+</table>
+
+### 🛡️ Administrator
+
+<table>
+<tr>
+<td align="center" width="100%"><img src="docs/screenshots/app/admin-dispatch.jpg" alt="Delivery dispatch view" width="200"><br><sub>Delivery dispatch view</sub></td>
+</tr>
+</table>
+
+<details>
+<summary><b>Feature collages</b></summary>
 
 <img src="docs/screenshots/showcase/customer-discovery.jpg" alt="Home, restaurants and nutrition" width="100%">
 <img src="docs/screenshots/showcase/customer-ai-finder.jpg" alt="AI Smart Food Finder" width="76%">
@@ -70,16 +140,11 @@ All images are real screenshots of the running app, mostly from a Samsung S23 Ul
 <img src="docs/screenshots/showcase/customer-negotiation-split.jpg" alt="Negotiation and bill splitting" width="100%">
 <img src="docs/screenshots/showcase/customer-scheduled-delivery.jpg" alt="Scheduled delivery" width="76%">
 <img src="docs/screenshots/showcase/customer-tracking-delivery.jpg" alt="Live tracking and secure delivery" width="76%">
-
-### Restaurant owner
-
 <img src="docs/screenshots/showcase/owner-operations.jpg" alt="Restaurant owner operations" width="76%">
-
-### Delivery partner & admin
-
 <img src="docs/screenshots/showcase/rider-admin.jpg" alt="Delivery partner and admin" width="100%">
+</details>
 
-<sub>Some screens haven't been photographed yet, though the features exist and are covered by automated tests: the owner's Group Proposals screen, the rider's Online toggle, the rider's live-location panel and PIN entry, and other admin views.</sub>
+<sub>Not yet photographed, though the features exist and are covered by automated tests: the owner's Group Proposals screen, the rider's Online toggle, the rider's live-location panel and PIN entry, and other admin views.</sub>
 
 ---
 
@@ -188,6 +253,21 @@ sequenceDiagram
 
 ---
 
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Mobile app | Flutter (Dart) · Riverpod · GoRouter · Dio · socket_io_client · flutter_map · geolocator · razorpay_flutter |
+| Backend | NestJS 11 (TypeScript) · class-validator · Socket.IO |
+| Database | PostgreSQL · Prisma ORM · 19 forward-only migrations · transactional outbox |
+| AI | Google Gemini for intent parsing only, with a deterministic fallback |
+| Routing | Optional OSRM-compatible provider; otherwise a clearly labelled estimate |
+| Payments | Razorpay **test** mode; demo no-payment checkout in development |
+| Security | Opaque hashed sessions · RBAC · Argon2id · HMAC delivery PIN · rate limiting |
+| Hosting | Render web service + Render PostgreSQL (staging) |
+
+---
+
 ## Run it locally
 
 **Prerequisites:**
@@ -250,19 +330,29 @@ cd ..; flutter analyze; flutter test
 Device evidence: [`docs/f3/`](docs/f3/IMPLEMENTATION.md) and [`docs/f4/device-result.json`](docs/f4/device-result.json).
 
 > **Still to verify:**
-> - Simultaneous two-phone GPS movement (rider and customer on separate phones) will be tested after deployment.
+> - Simultaneous two-phone GPS movement (rider and customer on separate phones) on the hosted API.
+> - Hosted checkout on Render (Razorpay test mode).
 > - Production-scale payment processing is **not** verified. Checkout uses a demo mode or Razorpay **test** mode.
 
 ---
 
 ## Deployment status
 
-**Selected platform: Microsoft Azure.**
-- Azure App Service for the NestJS API (WebSockets, Always On).
-- Azure Database for PostgreSQL – Flexible Server.
-- A Flutter release APK.
+**Backend: live on Render as a staging environment.**
 
-**Not deployed yet. There is no live URL.** See the [deployment plan](docs/DEPLOYMENT_PLAN.md) and the [production settings template](backend/.env.production.example). A Render blueprint is kept only as a [non-selected alternative](deploy/README.md).
+| Item | Status |
+|---|---|
+| API web service (`https://samori-api.onrender.com/api/v1/`) | ✅ Live. Health check reports API and database up |
+| Render PostgreSQL | ✅ All 19 migrations applied |
+| Catalog | ✅ Seeded: 38 outlets, 737 menu items, 10 localities |
+| Four roles | ✅ Non-demo accounts for customer, owner, rider and admin sign in |
+| Address, cart and price quote over the live API | ✅ Verified |
+| Hosted checkout | ⏳ Pending. Production refuses demo checkout by design; Razorpay test keys and delivery-PIN keys still need to be set on the host |
+| Two-phone moving-GPS test on the hosted API | ⏳ Pending |
+| Release APK pointing at the hosted API | ⏳ Built; device testing and distribution pending |
+
+The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
+Configuration lives in [`render.yaml`](render.yaml) and the [production settings template](backend/.env.production.example); secrets are set only in the Render dashboard. An [Azure deployment plan](docs/DEPLOYMENT_PLAN.md) is kept as a documented alternative.
 
 ---
 
@@ -281,8 +371,27 @@ Device evidence: [`docs/f3/`](docs/f3/IMPLEMENTATION.md) and [`docs/f4/device-re
 
 - [Development handoff](docs/DEVELOPMENT_HANDOFF.md): modules, migrations, environment variables, workflows
 - [F3 Scheduled delivery](docs/f3/IMPLEMENTATION.md) · [F4 Live tracking & ETA](docs/f4/IMPLEMENTATION.md)
-- [Deployment plan (Azure)](docs/DEPLOYMENT_PLAN.md)
+- [Render blueprint](render.yaml) · [Deployment plan (Azure alternative)](docs/DEPLOYMENT_PLAN.md)
 - Earlier phases: [pricing](docs/phase3/IMPLEMENTATION_STATUS.md) · [authentication](docs/phase4/AUTHENTICATION.md) · [orders](docs/phase5/ORDER_FLOW.md) · [payments](docs/phase6/PAYMENT_FLOW.md) · [real-time](docs/phase7/REALTIME_ARCHITECTURE.md) · [secure handover](docs/phase7_1/SECURE_HANDOVER.md)
 - [Asset credits](docs/ASSET_CREDITS.md)
 
-<div align="center"><sub><b>SAMORI</b> · Team NeuroX · Accurate AI Hackathon</sub></div>
+---
+
+## Repository
+
+| | |
+|---|---|
+| Personal repository | [Raghuram1784/smart_food_app](https://github.com/Raghuram1784/smart_food_app) |
+| Hackathon repository | [Accurate-Hackathon/KL-NeuroX](https://github.com/Accurate-Hackathon/KL-NeuroX) |
+| Default branch | `main` (kept identical in both repositories) |
+| Layout | `lib/` Flutter app · `backend/` NestJS API and Prisma schema · `docs/` design notes, evidence and screenshots |
+
+---
+
+## Team NeuroX
+
+<p align="center"><img src="docs/screenshots/team-neurox.jpg" alt="Team NeuroX" width="85%"></p>
+
+We thank the Accurate Background Hackathon 2026 organisers and mentors, and the open-source communities behind Flutter, NestJS, PostgreSQL, Prisma, Socket.IO and OpenStreetMap.
+
+<div align="center"><sub><b>SAMORI</b> · Team NeuroX · Accurate Background Hackathon 2026</sub></div>
