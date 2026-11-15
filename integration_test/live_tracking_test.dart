@@ -83,10 +83,20 @@ void main() {
     await rider.post('rider/presence/online', data: {});
     for (var i = 0; i < 60; i++) { final offers = (await rider.get('operations/delivery/offers')).data['data']['offers'] as List; if (offers.any((o) => o['orderId'] == id0)) break; await pause(); }
     await login('rider', '/deliveries');
+    // Other synthetic invitations may be pending in the shared dev DB: decline those, accept only ours.
     final accept = find.byKey(const ValueKey('offer-dialog-accept'));
-    await waitFor(accept);
-    await tester.tap(accept);
-    await tester.pumpAndSettle();
+    for (var attempt = 0; attempt < 8; attempt++) {
+      await waitFor(accept);
+      final ours = find.descendant(of: find.byType(AlertDialog), matching: find.text('Order: ${order['orderNumber']}')).evaluate().isNotEmpty;
+      if (ours) {
+        await tester.tap(accept);
+        await tester.pumpAndSettle();
+        break;
+      }
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Decline')));
+      await tester.pumpAndSettle();
+      await pause();
+    }
     var assigned = false;
     for (var i = 0; i < 30 && !assigned; i++) { await pause(); assigned = ((await rider.get('operations/delivery/orders')).data['data']['items'] as List).any((o) => o['id'] == id0); }
     expect(assigned, isTrue);
