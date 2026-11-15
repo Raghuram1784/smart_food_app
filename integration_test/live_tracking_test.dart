@@ -161,6 +161,7 @@ void main() {
     await shot('03-customer-delivered-tracking-ended');
 
     binding.reportData = {
+      ...?binding.reportData, // keep captured screenshots
       'orderNumber': order['orderNumber'], 'device': 'Samsung S23 Ultra SM-S918B (single phone: rider, then customer)',
       'firstFixAccuracyMeters': accuracy.round(), 'fixesWhileScreenOff': screenOffFixes,
       'customerFreshnessAtCapture': live['rider']['freshness'], 'etaSource': live['eta']['source'], 'routingProvider': live['routing']['provider'],
