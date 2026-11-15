@@ -166,4 +166,37 @@ void main() {
   });
   // Global customer OTP layer tests live in customer_otp_layer_test.dart,
   // mounted in the real MaterialApp.router builder placement.
+
+  testWidgets('two pending requests: each gets its own popup, one after another', (tester) async {
+    final repo = _TwoOffers()..online = true;
+    await _mount(tester, repo, 'DELIVERY_PARTNER', const RiderDashboardScreen());
+    await tester.pumpAndSettle();
+    expect(find.text('Order: FD-FIRST-1'), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Decline')));
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('POST operations/delivery/offers/offer-a/decline'));
+    expect(find.text('Order: FD-SECOND-2'), findsOneWidget, reason: 'the second request is announced too');
+    await tester.tap(find.byKey(const ValueKey('offer-dialog-accept')));
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('POST operations/delivery/offers/offer-b/accept'));
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _TwoOffers extends FakeOps {
+  _TwoOffers() {
+    offers = [
+      {'id': 'offer-a', 'orderId': 'order-a', 'orderNumber': 'FD-FIRST-1', 'restaurantName': 'The Tiffin Room', 'items': <Json>[], 'orderTotalPaise': 10000},
+      {'id': 'offer-b', 'orderId': 'order-b', 'orderNumber': 'FD-SECOND-2', 'restaurantName': 'The Tiffin Room', 'items': <Json>[], 'orderTotalPaise': 12000},
+    ];
+  }
+  @override
+  Future<dynamic> request(String method, String path, [Json? data]) async {
+    if (path.endsWith('/decline')) {
+      calls.add('$method $path');
+      offers = offers.where((o) => !path.contains(o['id'] as String)).toList();
+      return {'declined': true};
+    }
+    return super.request(method, path, data);
+  }
 }

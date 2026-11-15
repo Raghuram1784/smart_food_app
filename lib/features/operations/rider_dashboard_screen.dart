@@ -123,10 +123,9 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
     if (_dialogOpen || !mounted) return;
     final fresh = offers.where((o) => !_announced.contains(o['id'])).toList();
     if (fresh.isEmpty) return;
-    for (final o in fresh) {
-      _announced.add(o['id'] as String);
-    }
+    // Announce one request at a time; the others stay pending and are shown after this one closes.
     final offer = fresh.first;
+    _announced.add(offer['id'] as String);
     _dialogOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
@@ -139,6 +138,8 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
       );
       _dialogOpen = false;
       if (choice != null && mounted) await _respond(offer, choice);
+      final pending = mounted ? ref.read(riderOffersProvider).asData?.value : null;
+      if (pending != null) _announce(pending);
     });
   }
 

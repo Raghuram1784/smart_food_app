@@ -57,9 +57,18 @@ void main(){
    await rider.post('rider/presence/online',data:{});
    for(var i=0;i<180;i++){final offers=(await rider.get('operations/delivery/offers')).data['data']['offers'] as List;if(offers.any((o)=>o['orderId']==id))break;await pause();}
    await login('rider','/deliveries');await waitFor(find.text('New Delivery Request'));await shot('04-samsung-timed-rider-invitation');// The dialog sits above the offer card; tap its own button (the card's identical label is obscured).
-   final accept=find.byKey(const ValueKey('offer-dialog-accept'));await waitFor(accept);await tester.tap(accept);await tester.pumpAndSettle();
+   // Other synthetic invitations may be pending in the shared dev DB: decline those, accept only this order.
+   final accept=find.byKey(const ValueKey('offer-dialog-accept'));
+   for(var attempt=0;attempt<8;attempt++){
+    await waitFor(accept);
+    final ours=find.descendant(of:find.byType(AlertDialog),matching:find.text('Order: ${order['orderNumber']}')).evaluate().isNotEmpty;
+    if(ours){await tester.tap(accept);await tester.pumpAndSettle();break;}
+    await tester.tap(find.descendant(of:find.byType(AlertDialog),matching:find.text('Decline')));await tester.pumpAndSettle();await pause();
+   }
+   String? notice;for(var i=0;i<30&&notice==null;i++){await tester.pump(const Duration(milliseconds:100));final bar=find.descendant(of:find.byType(SnackBar),matching:find.byType(Text));if(bar.evaluate().isNotEmpty)notice=(tester.widget<Text>(bar.first).data);}
+   debugPrint('F3_ACCEPT_NOTICE: ${notice ?? 'none'}');
    var assigned=false;for(var i=0;i<40&&!assigned;i++){await pause();final data=(await rider.get('operations/delivery/orders')).data['data'];assigned=(data['items'] as List).any((o)=>o['id']==id);}
-   expect(assigned,isTrue,reason:'rider accepted the invitation from the UI');
+   expect(assigned,isTrue,reason:'rider accepted the invitation from the UI (app said: ${notice ?? 'nothing'})');
    order=Json.from((await rider.get('operations/delivery/orders/$id')).data['data']);expect(order['assignment'],isNotNull);
    order=await transition(rider,'delivery',id,'pickup');
    order=await transition(rider,'delivery',id,'out-for-delivery');
