@@ -1,0 +1,22 @@
+{
+  "orderId": "1583111d-ecdc-45bf-ab8c-aa4191035fb2",
+  "orderNumber": "FD-079BBBFAED570BA53449",
+  "device": "Samsung S23 Ultra SM-S918B",
+  "scheduledDeliveryAt": "2026-11-15T08:35:00.000Z",
+  "actualDeliveryAt": "2026-11-15T08:33:03.717Z",
+  "indicator": "DELIVERED_WITHIN_WINDOW",
+  "events": [
+    "ORDER_ACCEPTED",
+    "PREPARATION_STARTED",
+    "ORDER_READY",
+    "RIDER_ASSIGNED",
+    "HANDOVER_ISSUED_1",
+    "SCHEDULE_PREPARATION_DUE",
+    "SCHEDULE_DISPATCH_DUE",
+    "ORDER_PICKED_UP",
+    "OUT_FOR_DELIVERY",
+    "ORDER_DELIVERED"
+  ],
+  "earlyPreparationStatus": 409,
+  "flow": "UI slot selection and checkout; authorized API kitchen/pickup/OTP actions; UI rider invitation acceptance; real clock waits"
+}
