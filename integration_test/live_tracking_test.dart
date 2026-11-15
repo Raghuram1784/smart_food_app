@@ -106,8 +106,12 @@ void main() {
     // 3) Rider starts sharing; the OS permission prompt is answered on the phone (harness watcher).
     final panel = find.byKey(const ValueKey('rider-tracking-panel'));
     await waitFor(panel);
+    for (var i = 0; i < 5 && find.byType(AlertDialog).evaluate().isNotEmpty; i++) {
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Decline')));
+      await tester.pumpAndSettle();
+    }
     final start = find.byKey(const ValueKey('rider-tracking-start'));
-    if (start.evaluate().isNotEmpty) { await tester.ensureVisible(start); await tester.tap(start); }
+    if (start.evaluate().isNotEmpty) { await tester.ensureVisible(start); await tester.pumpAndSettle(); await tester.tap(start); }
     debugPrint('F4_PERMISSION_WINDOW');
     Json? v;
     for (var i = 0; i < 120; i++) {
