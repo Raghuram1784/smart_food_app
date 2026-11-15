@@ -15,13 +15,34 @@ Built by **Team NeuroX** for the **Accurate Background Hackathon 2026**
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-realtime-010101?logo=socketdotio&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Google-Gemini-8E75B2?logo=googlegemini&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-315%20passing-2E7D32)
-![Render](https://img.shields.io/badge/API-live%20on%20Render%20(staging)-46E3B7?logo=render&logoColor=white)
+![Render](https://img.shields.io/badge/API-live%20on%20Render-46E3B7?logo=render&logoColor=white)
+![Razorpay](https://img.shields.io/badge/Payments-Razorpay%20Test%20Mode-0C2451?logo=razorpay&logoColor=white)
 
 <img src="docs/screenshots/app/customer-home.jpg" alt="Home" width="19%"> <img src="docs/screenshots/app/customer-ai-results.jpg" alt="AI Smart Food Finder" width="19%"> <img src="docs/screenshots/app/customer-split-by-person.jpg" alt="Bill split" width="19%"> <img src="docs/screenshots/app/customer-schedule-slot.jpg" alt="Scheduled delivery" width="19%"> <img src="docs/screenshots/app/customer-live-tracking.jpg" alt="Live tracking" width="19%">
 
-**[Features](#what-samori-does) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Run it](#run-it-locally) · [Tests](#testing-evidence) · [Deployment](#deployment-status) · [Team](#team-neurox)**
+<a href="https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-17342B?style=for-the-badge&logo=android&logoColor=white" alt="Download Android APK" height="44"></a>
+
+**[Download Samori.apk](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk)** · [Release notes](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Hackathon repository release](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/tag/v1.1.0)
+
+**[For judges](#for-judges-install-and-try-it) · [Features](#implemented-features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Run it](#run-it-locally) · [Tests](#testing-evidence) · [Deployment](#deployment) · [Team](#team-neurox)**
 
 </div>
+
+---
+
+## For judges: install and try it
+
+1. On an Android phone (Android 7.0 or later), open **[Download Samori.apk](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk)**.
+2. Open the downloaded file. If Android asks, allow **Install unknown apps** for your browser or Files app, then tap **Install**.
+3. Open **SAMORI** and sign in with the demo accounts shared with the submission (one each for Customer, Restaurant Owner, Delivery Partner and Admin). Credentials are not published here.
+4. The app connects to the hosted API on Render. The free server sleeps when idle, so the **first screen can take up to a minute** to load.
+5. Payments run in **Razorpay Test Mode**: no real money moves. Use Razorpay's published test card or test UPI on the payment screen.
+
+**Suggested 5-minute tour**
+- **Customer:** set the delivery address to Gachibowli → try **Kids Meals** and the **AI Smart Food Finder** → order and pay in test mode → follow live tracking.
+- **Restaurant Owner:** switch kitchen (shop icon) to the outlet you ordered from → accept, prepare, mark ready → manage Kids Meals (child icon).
+- **Delivery Partner:** go online → accept the invitation → pick up → enter the customer's PIN → see **Earnings**.
+- **Admin:** **Overview** dashboard (orders, revenue, platform and rider earnings) → record a rider payout.
 
 ---
 
@@ -36,7 +57,14 @@ Ordering food for yourself, your family or a group of friends is still guesswork
 
 ## What SAMORI does
 
-SAMORI is one Flutter app with four roles: **Customer**, **Restaurant Owner**, **Delivery Partner** and **Admin**. A NestJS + PostgreSQL backend is the single source of truth for prices, order state and authorization.
+SAMORI is one Flutter app with four roles. A NestJS + PostgreSQL backend is the single source of truth for prices, order state and authorization.
+
+| Role | What they do |
+|---|---|
+| 🛒 **Customer** | Discover restaurants, AI Smart Food Finder, Kids Meals, cart and Razorpay test checkout, group orders with negotiation and bill split, scheduled delivery, live tracking, PIN handover |
+| 🍳 **Restaurant Owner** | Accept or reject orders, kitchen workflow, scheduled orders, respond to group price requests, curate Kids Meals, switch between outlets |
+| 🛵 **Delivery Partner** | Go online, accept invitations (first accept wins), pickup, live GPS sharing, PIN-verified delivery, Earnings and payouts |
+| 🛡️ **Admin** | Overview dashboard with orders, revenue, platform and rider earnings, restaurant performance and transactions; record rider payouts; delivery dispatch |
 
 | | Why it stands out |
 |---|---|
@@ -47,35 +75,38 @@ SAMORI is one Flutter app with four roles: **Customer**, **Restaurant Owner**, *
 | 🗓️ **Scheduled delivery** | Book a ten-minute target window. The kitchen can't start early, and riders are invited at the right moment. |
 | 🛵 **Live GPS tracking & smart ETA** | Real rider GPS during an active delivery, a road-route or clearly labelled estimated ETA, and honest "last updated" freshness. |
 | 🔐 **Secure OTP handover** | Delivery completes only with the customer's 6-digit PIN (hashed, rate-limited, bound to the rider). |
+| 🧒 **Kids Meals** | Smaller, mild dishes curated by restaurant owners, ordered through the normal cart and checkout. |
+| 📊 **Finance visibility** | Admin revenue and earnings dashboard; rider earnings with a transparent 10% platform commission and recorded payouts. |
+| 💳 **Razorpay Test Mode** | Real Razorpay checkout flow with test keys only; live keys are refused by the server. |
 
-> **Development catalog:** 38 synthetic restaurant outlets · 737 menu items · 10 Hyderabad localities. Prices and outlets are illustrative.
+> **Catalog:** 38 synthetic restaurant outlets · 752 menu items (including 15 Kids Meals) · 10 Hyderabad localities. Prices and outlets are illustrative.
 
 ---
 
-## Feature status
+## Implemented features
 
-| ID | Feature | Status |
-|---|---|---|
-| F1 | AI Smart Food Finder, total-payable budget filtering, calories & protein | ✅ Merged |
-| F2 | Group ordering, Order for Friends, restaurant price negotiation, bill splitting | ✅ Merged |
-| F3 | Scheduled delivery with time-gated kitchen and automatic rider dispatch | ✅ Merged |
-| F4 | Real-time rider GPS tracking and dynamic ETA | ✅ Merged |
-| F7 | Automatic rider invitations (first accept wins) and secure OTP handover | ✅ Merged |
-| — | Four-role authentication (opaque sessions, RBAC) | ✅ Merged |
-| v1.1 | Razorpay TEST checkout on the hosted build (personal and group orders) | ✅ Merged, verified on Render |
-| v1.1 | Admin dashboard: people, orders, revenue, platform earnings, restaurant performance, transactions, Today/Week/Month/All filters | ✅ Merged |
-| v1.1 | Delivery partner Earnings: today/week/month, gross, 10% platform commission, net payable, payouts, per-delivery history | ✅ Merged |
-| v1.1 | Manual rider payout settlements recorded by the admin (no bank transfer) | ✅ Merged |
-| v1.1 | Kids Meals: home button, Kids Meals page, owner-curated dishes, normal cart and Razorpay checkout | ✅ Merged |
-| v1.1 | Official SAMORI launcher icon (adaptive, themed) and app name; light-mode readability fix for header sheets | ✅ Merged |
+| Area | What is implemented |
+|---|---|
+| AI Smart Food Finder | Natural-language requests; Gemini parses intent only; server prices every match on the total payable; calories and protein estimates where available |
+| Group ordering | Order for friends by name or invite code, shared cart, restaurant price negotiation (accept / reject / counter), exact bill split by person or equally |
+| Scheduled delivery | Ten-minute target windows from real hours, prep time and capacity; kitchen and rider dispatch follow the plan |
+| Live tracking | Real rider GPS during an active delivery, honest freshness, road-route or labelled estimated ETA |
+| Rider dispatch and handover | Automatic invitations, first accept wins, 6-digit PIN handover |
+| Payments | Razorpay **Test Mode** for personal and group orders on the hosted build; payment verified server-side before the restaurant can accept |
+| Admin dashboard | Customers, restaurants, riders; total / active / completed / cancelled orders; order revenue; platform earnings; rider earnings; pending and completed payouts; revenue trend; restaurant performance; recent orders and transactions; Today / Week / Month / All |
+| Rider earnings | Today, week, month; gross; 10% platform commission (configurable); net payable; pending and paid payouts; per-delivery history |
+| Rider payouts | Admin records manual settlements; never above the pending balance; idempotent. No bank transfer is made by the app |
+| Kids Meals | Home button under Group Order, Kids Meals page by delivery area, owner on/off per dish, 15 seeded dishes across 6 outlets |
+| Security | Four roles with RBAC, opaque hashed sessions, Argon2id passwords, rate limiting, integer-paise money, server-side pricing |
+| Branding | Official SAMORI adaptive launcher icon and app name |
 
-**How the v1.1 numbers are calculated (real database records only):**
+**How the finance numbers are calculated (real database records only):**
 - *Order revenue* = total payable of orders that are not cancelled, rejected or still awaiting payment.
-- *Rider gross earnings* = the delivery fee of each **completed** (OTP-verified) delivery; one assignment per order, so nothing is counted twice.
-- *Platform commission* = `RIDER_COMMISSION_BPS` of rider gross earnings (default 1000 = 10%). Example: ₹1,000 gross → ₹100 commission → ₹900 net.
+- *Rider gross earnings* = the delivery fee of each **completed** (PIN-verified) delivery; one assignment per order, so nothing is counted twice.
+- *Platform commission* = 10% of rider gross earnings by default (`RIDER_COMMISSION_BPS`). Example: ₹1,000 gross → ₹100 commission → ₹900 net.
 - *Platform earnings* = platform fees on orders + rider commission.
-- *Pending payout* = net rider earnings − payouts recorded by the admin. A payout can never exceed the pending balance and is idempotent.
-- *Kids Meals* are dishes the restaurant owner marks as suitable for children. No nutrition or allergen data is invented; estimates show only where they already exist.
+- *Pending payout* = net rider earnings − payouts recorded by the admin.
+- *Kids Meals* show no invented nutrition or allergen data.
 
 ---
 
@@ -160,7 +191,7 @@ All images are real screenshots of the running app on a Samsung S23 Ultra. Statu
 <img src="docs/screenshots/showcase/rider-admin.jpg" alt="Delivery partner and admin" width="100%">
 </details>
 
-<sub>Not yet photographed, though the features exist and are covered by automated tests: the owner's Group Proposals screen, the rider's Online toggle, the rider's live-location panel and PIN entry, and other admin views.</sub>
+<sub>Screens added in the final release (admin Overview dashboard, rider Earnings, Kids Meals) are not shown above; see them in the app after installing the APK.</sub>
 
 ---
 
@@ -181,10 +212,13 @@ flowchart LR
     Ops --- Track[F4 tracking & ETA]
     Finder[F1 AI finder] --- Pricing
     Group[F2 group orders] --- Pricing
+    Pay[Razorpay Test Mode] --- Orders
+    Insights[Admin finance · rider earnings · Kids Meals] --- Orders
   end
   API --> DB[("PostgreSQL · Prisma<br/>transactional outbox")]
   Finder -. "intent only" .-> Gemini[Google Gemini]
   Track -. "optional" .-> OSRM[OSRM routing]
+  Pay -. "test keys only" .-> RZP[Razorpay]
 ```
 
 <details>
@@ -275,12 +309,12 @@ sequenceDiagram
 |---|---|
 | Mobile app | Flutter (Dart) · Riverpod · GoRouter · Dio · socket_io_client · flutter_map · geolocator · razorpay_flutter |
 | Backend | NestJS 11 (TypeScript) · class-validator · Socket.IO |
-| Database | PostgreSQL · Prisma ORM · 19 forward-only migrations · transactional outbox |
+| Database | PostgreSQL · Prisma ORM · 20 forward-only migrations · transactional outbox |
 | AI | Google Gemini for intent parsing only, with a deterministic fallback |
 | Routing | Optional OSRM-compatible provider; otherwise a clearly labelled estimate |
-| Payments | Razorpay **test** mode; demo no-payment checkout in development |
+| Payments | Razorpay **Test Mode** only (live keys refused); no-payment demo checkout exists only in local development |
 | Security | Opaque hashed sessions · RBAC · Argon2id · HMAC delivery PIN · rate limiting |
-| Hosting | Render web service + Render PostgreSQL (staging) |
+| Hosting | Render web service + Render PostgreSQL; signed Android release APK |
 
 ---
 
@@ -315,9 +349,13 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5000/api/v1/
 
 **Demo accounts:** `customer@demo.test`, `restaurant@demo.test`, `rider@demo.test` and `admin@demo.test`. Their passwords are generated locally in `backend/.env`.
 
+**Kids Meals sample dishes (optional):** `npx tsx scripts/seed-kids-meals.ts` from `backend` (create-only and safe to re-run).
+
 **Optional local settings:**
 - `SCHEDULE_DEMO_FAST=true` shortens scheduled-delivery timings for demos. It only works in development.
 - `ROUTING_PROVIDER=osrm` turns on road-route ETAs. It is off by default.
+- `RIDER_COMMISSION_BPS=1000` sets the platform commission on rider earnings (10%).
+- Razorpay: set `RAZORPAY_KEY_ID` (must start with `rzp_test_`) and `RAZORPAY_KEY_SECRET`. On a production server also set `PAYMENTS_TEST_MODE_ENABLED=true`.
 
 ---
 
@@ -345,34 +383,31 @@ cd ..; flutter analyze; flutter test
 
 Device evidence: [`docs/f3/`](docs/f3/IMPLEMENTATION.md) and [`docs/f4/device-result.json`](docs/f4/device-result.json).
 
-> **Still to verify:**
-> - Simultaneous two-phone GPS movement (rider and customer on separate phones) on the hosted API.
-> - Hosted checkout on Render (Razorpay test mode).
-> - Production-scale payment processing is **not** verified. Checkout uses a demo mode or Razorpay **test** mode.
+**On the hosted API:** a complete order was placed, paid in Razorpay Test Mode from the Samsung, accepted, prepared, picked up and delivered with the customer's PIN. The admin dashboard and rider earnings reflect it.
 
 ---
 
-## Deployment status
+## Deployment
 
-**Backend: live on Render as a staging environment.**
-
-| Item | Status |
+| Component | Where |
 |---|---|
-| API web service (`https://samori-api.onrender.com/api/v1/`) | ✅ Live. Health check reports API and database up |
-| Render PostgreSQL | ✅ Migrations applied automatically on deploy (20 with v1.1) |
-| Catalog | ✅ Seeded: 38 outlets, 737 menu items, 10 localities |
-| Four roles | ✅ Non-demo accounts for customer, owner, rider and admin sign in |
-| Address, cart and price quote over the live API | ✅ Verified |
-| Hosted checkout | ✅ Razorpay TEST payment completed from the Samsung on the hosted API (order marked PAID). Demo checkout stays refused in production |
-| Two-phone moving-GPS test on the hosted API | ⏳ Pending |
-| Release APK pointing at the hosted API | ✅ Samori-v1.1 (signed, hosted API); v1.0.1 installed and used on the Samsung |
+| Backend API | Render web service: `https://samori-api.onrender.com/api/v1/` (health: `/api/v1/health`) |
+| Database | Render PostgreSQL; migrations run automatically on each deploy |
+| Android app | [Samori.apk](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk): signed release build pointing at the hosted API |
+| Payments | Razorpay Test Mode (test keys set in the Render dashboard, never in the repository) |
 
 The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
-Configuration lives in [`render.yaml`](render.yaml) and the [production settings template](backend/.env.production.example); secrets are set only in the Render dashboard. An [Azure deployment plan](docs/DEPLOYMENT_PLAN.md) is kept as a documented alternative.
+Configuration lives in [`render.yaml`](render.yaml) and the [production settings template](backend/.env.production.example); secrets are set only in the Render dashboard.
+
+**Known limitations**
+- Payments are Razorpay **Test Mode** only; no real money is collected and production payment processing is not enabled.
+- Group bill-split shares are informational; the organizer pays the order total.
+- A simultaneous two-phone moving-GPS run on the hosted API has not been recorded; live tracking was verified with real GPS on one Samsung.
+- Catalog data, prices and nutrition estimates are illustrative.
 
 ---
 
-## Future scope (not implemented)
+## Future scope
 
 - 🔁 Automatic rider replacement
 - ✏️ Smart order modification after checkout
@@ -386,7 +421,7 @@ Configuration lives in [`render.yaml`](render.yaml) and the [production settings
 
 - [Development handoff](docs/DEVELOPMENT_HANDOFF.md): modules, migrations, environment variables, workflows
 - [F3 Scheduled delivery](docs/f3/IMPLEMENTATION.md) · [F4 Live tracking & ETA](docs/f4/IMPLEMENTATION.md)
-- [Render blueprint](render.yaml) · [Deployment plan (Azure alternative)](docs/DEPLOYMENT_PLAN.md)
+- [Render blueprint](render.yaml) · [Azure deployment plan (alternative)](docs/DEPLOYMENT_PLAN.md)
 - Earlier phases: [pricing](docs/phase3/IMPLEMENTATION_STATUS.md) · [authentication](docs/phase4/AUTHENTICATION.md) · [orders](docs/phase5/ORDER_FLOW.md) · [payments](docs/phase6/PAYMENT_FLOW.md) · [real-time](docs/phase7/REALTIME_ARCHITECTURE.md) · [secure handover](docs/phase7_1/SECURE_HANDOVER.md)
 - [Asset credits](docs/ASSET_CREDITS.md)
 
@@ -398,6 +433,7 @@ Configuration lives in [`render.yaml`](render.yaml) and the [production settings
 |---|---|
 | Personal repository | [Raghuram1784/smart_food_app](https://github.com/Raghuram1784/smart_food_app) |
 | Hackathon repository | [Accurate-Hackathon/KL-NeuroX](https://github.com/Accurate-Hackathon/KL-NeuroX) |
+| Release | [Samori v1.1.0 · Hackathon Edition](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Download APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk) |
 | Default branch | `main` (kept identical in both repositories) |
 | Layout | `lib/` Flutter app · `backend/` NestJS API and Prisma schema · `docs/` design notes, evidence and screenshots |
 
