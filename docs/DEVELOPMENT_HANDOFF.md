@@ -34,7 +34,7 @@ Next phase: **F3 — Scheduled Delivery and ETA Transparency** (to be implemente
 
 ## 4. Prisma migrations (in order)
 
-`202611110001_catalog` → `…120001_add_locality` → `…120002_auth` → `…120003_commerce` → `…130001_payments` → `…130002_operations` → `…130003_secure_handover` → `…140001_rider_presence` → `…140002_active_assignment_index` → `…150001_customer_delivery_location` → `…160001_delivery_offers` → `…170001_menu_item_nutrition` → `…180001_menu_item_profile` → `…190001_restaurant_brand` → **`…200001_group_ordering`** → **`…210001_group_bill_split`**.
+`202611110001_catalog` → `…120001_add_locality` → `…120002_auth` → `…120003_commerce` → `…130001_payments` → `…130002_operations` → `…130003_secure_handover` → `…140001_rider_presence` → `…140002_active_assignment_index` → `…150001_customer_delivery_location` → `…160001_delivery_offers` → `…170001_menu_item_nutrition` → `…180001_menu_item_profile` → `…190001_restaurant_brand` → **`…200001_group_ordering`** → **`…210001_group_bill_split`** → **`…220001_group_guest_participants`**.
 
 Apply with `npx prisma migrate deploy` (never `migrate reset` on the dev DB; it holds demo orders and 28 restaurant-owner accounts).
 
@@ -48,6 +48,10 @@ Delivery offers go to online riders by locality (no rider GPS). The customer's d
 
 ### F2 — Group Food Ordering (`backend/src/modules/group`, `lib/features/group`)
 
+- **Entry points:** a compact **Group Order** button under the Home search bar (start, join with a code, or resume an active group; the restaurant is chosen after starting) and "Start a group order" on every restaurant page.
+- **Two ways to order (same group infrastructure):**
+  - **Order for friends:** the organizer types participant names (`POST /groups/:id/guests`). Guests are `GroupMember` rows with `isGuest = true` and no account (`accountId` NULL, enforced by a check constraint), so they need no app, invite or OTP. The organizer adds food for each guest (`forMemberId` on `POST /groups/:id/items`), edits their lines and can remove a guest (`DELETE /groups/:id/guests/:guestId`), which removes their food and bumps the cart revision. Guests count toward the 12-person limit and appear in both bill splits.
+  - **Invite friends:** the existing join code and link; each friend adds their own food. Both can be mixed in one group. Account holders' lines can only be changed by their owner.
 - **Flow:**
   1. The organizer creates a group for one restaurant and a delivery address.
   2. The organizer shares an 8-character join code or a link. Invites are stored as SHA-256 hashes, and join attempts are limited to 10 per minute per user.
