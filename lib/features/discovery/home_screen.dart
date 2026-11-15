@@ -89,6 +89,8 @@ class _Header extends StatelessWidget {
                   ]),
                   const SizedBox(height: 10),
                   const _SearchBar(),
+                  const SizedBox(height: 10),
+                  const GroupOrderEntry(),
                 ]),
               ),
             ),
@@ -247,7 +249,6 @@ class _HomeBody extends ConsumerWidget {
         _DishRow(title: 'Under ₹150', subtitle: 'Menu price · delivery and fees shown at checkout', dishes: affordable, onMore: () => context.go('/search?affordable=true')),
         _DishRow(title: 'High-protein meals', subtitle: '20 g+ protein, estimated per serving', dishes: protein),
         const Padding(padding: EdgeInsets.fromLTRB(16, 20, 16, 0), child: FinderEntryCard()),
-        const Padding(padding: EdgeInsets.fromLTRB(16, 10, 16, 0), child: GroupOrderEntry()),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
           child: Text(

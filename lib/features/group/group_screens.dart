@@ -44,14 +44,19 @@ const _statusLabel = {
 };
 
 // ===================================================================== Start a group (from a restaurant)
-Future<void> startGroupOrder(BuildContext context, WidgetRef ref, {required String restaurantId, required String restaurantName}) async {
+/// Two ways to order together, on top of the same group order:
+/// `friends`: the organizer adds people by name and picks everyone's food on this phone;
+/// `invite`: friends join with a code or link and add their own food.
+const groupModeFriends = 'friends', groupModeInvite = 'invite';
+
+Future<void> startGroupOrder(BuildContext context, WidgetRef ref, {required String restaurantId, required String restaurantName, String? mode}) async {
   final address = ref.read(deliveryDestinationProvider).asData?.value;
   if (address == null) {
     _toast(context, 'Choose a delivery address first (Cart → Delivering to).');
     return;
   }
   final name = TextEditingController();
-  final ok = await showModalBottomSheet<bool>(
+  final chosen = mode ?? await showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     useRootNavigator: true,
@@ -63,7 +68,7 @@ Future<void> startGroupOrder(BuildContext context, WidgetRef ref, {required Stri
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text('Start a group order', style: text.titleLarge),
           const SizedBox(height: 4),
-          Text('Friends join with a code, add their own dishes, and you ask $restaurantName for a group price.', style: text.bodyMedium?.copyWith(color: c.muted)),
+          Text('Pick everyone\'s food yourself, or invite friends to add their own. Then ask $restaurantName for a group price.', style: text.bodyMedium?.copyWith(color: c.muted)),
           const SizedBox(height: 14),
           _InfoLine(icon: Icons.storefront_outlined, text: restaurantName),
           _InfoLine(icon: Icons.place_outlined, text: 'Delivering to ${destinationTitle(address)}'),
@@ -73,23 +78,30 @@ Future<void> startGroupOrder(BuildContext context, WidgetRef ref, {required Stri
           TextField(key: const ValueKey('group-name'), controller: name, maxLength: 60, decoration: const InputDecoration(labelText: 'Group name (optional)', counterText: '')),
           const SizedBox(height: 14),
           FilledButton.icon(
-            key: const ValueKey('group-create'),
+            key: const ValueKey('group-create-friends'),
             style: FilledButton.styleFrom(backgroundColor: c.forest, foregroundColor: c.onForest),
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.groups_2_outlined),
-            label: const Text('Create group'),
+            onPressed: () => Navigator.pop(context, groupModeFriends),
+            icon: const Icon(Icons.edit_note),
+            label: const Text('Order for friends'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const ValueKey('group-create'),
+            onPressed: () => Navigator.pop(context, groupModeInvite),
+            icon: const Icon(Icons.share_outlined),
+            label: const Text('Invite friends'),
           ),
         ]),
       );
     },
   );
-  if (ok != true || !context.mounted) return;
+  if (chosen == null || !context.mounted) return;
   try {
     final r = await ref.read(groupApiProvider).create(restaurantId: restaurantId, addressId: address['id'] as String, name: name.text.trim().isEmpty ? null : name.text.trim());
     final group = Json.from(r['group'] as Map);
     ref.read(inviteCacheProvider.notifier).put(group['id'] as String, Json.from(r['invite'] as Map));
     ref.invalidate(myGroupsProvider);
-    if (context.mounted) context.push('/groups/${group['id']}?invite=1');
+    if (context.mounted) context.push('/groups/${group['id']}?${chosen == groupModeFriends ? 'friends' : 'invite'}=1');
   } catch (e) {
     if (context.mounted) _toast(context, groupError(e));
   }
@@ -144,6 +156,22 @@ class _GroupHubScreenState extends ConsumerState<GroupHubScreen> {
     super.dispose();
   }
 
+  /// Start a group: choose the restaurant after choosing how to order.
+  Future<void> _start(String mode) async {
+    if (ref.read(deliveryDestinationProvider).asData?.value == null) {
+      _toast(context, 'Choose a delivery address first (Cart → Delivering to).');
+      return;
+    }
+    final picked = await showModalBottomSheet<({String id, String name})>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (_) => _RestaurantPicker(mode: mode),
+    );
+    if (picked == null || !mounted) return;
+    await startGroupOrder(context, ref, restaurantId: picked.id, restaurantName: picked.name, mode: mode);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = FinderColors.of(context);
@@ -155,17 +183,39 @@ class _GroupHubScreenState extends ConsumerState<GroupHubScreen> {
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(myGroupsProvider),
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: c.forest, borderRadius: BorderRadius.circular(20)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Order together, ask for a group price', style: text.titleMedium?.copyWith(color: c.onForest, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text('Start a group from any restaurant page, invite friends with a code, then send the restaurant your budget. It can accept, decline or counter.',
-                  style: text.bodySmall?.copyWith(color: c.onForest.withValues(alpha: .85))),
-            ]),
+          Text('Order together. Save together.', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text('Choose how to start, pick a restaurant, then ask it for a group price. It can accept, decline or counter.', style: text.bodySmall?.copyWith(color: c.muted)),
+          const SizedBox(height: 10),
+          _ModeTile(
+            key: const ValueKey('hub-friends'),
+            icon: Icons.edit_note,
+            title: 'Order for friends',
+            subtitle: 'Type their names and pick everyone\'s food on this phone. No app or account needed for them.',
+            onTap: () => _start(groupModeFriends),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          _ModeTile(
+            key: const ValueKey('hub-invite'),
+            icon: Icons.share_outlined,
+            title: 'Invite friends',
+            subtitle: 'Share a code or link. Each friend adds their own food from their phone.',
+            onTap: () => _start(groupModeInvite),
+          ),
+          ...groups.maybeWhen(
+            data: (list) {
+              final active = list.where((g) => !['ORDERED', 'CANCELED', 'EXPIRED'].contains(g['status'])).toList();
+              if (active.isEmpty) return const <Widget>[];
+              return [
+                const SizedBox(height: 20),
+                Text('Resume', style: text.titleMedium),
+                const SizedBox(height: 8),
+                for (final g in active) _GroupTile(g: g, key: ValueKey('resume-${g['id']}')),
+              ];
+            },
+            orElse: () => const <Widget>[],
+          ),
+          const SizedBox(height: 20),
           Text('Join with a code', style: text.titleMedium),
           const SizedBox(height: 8),
           Row(children: [
@@ -187,26 +237,17 @@ class _GroupHubScreenState extends ConsumerState<GroupHubScreen> {
             ),
           ]),
           const SizedBox(height: 20),
-          Text('Your groups', style: text.titleMedium),
+          Text('Past group orders', style: text.titleMedium),
           const SizedBox(height: 8),
           ...groups.when(
             loading: () => [const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))],
             error: (e, _) => [Text(groupError(e))],
-            data: (list) => list.isEmpty
-                ? [Text('No group orders yet. Open a restaurant and tap "Start a group order".', style: text.bodyMedium?.copyWith(color: c.muted))]
-                : [
-                    for (final g in list)
-                      Card(
-                        child: ListTile(
-                          key: ValueKey('group-${g['id']}'),
-                          leading: CircleAvatar(backgroundColor: c.paleGreen, child: Icon(Icons.groups_2_outlined, color: c.forest)),
-                          title: Text((g['name'] as String?) ?? g['restaurantName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text('${g['restaurantName']} · ${g['memberCount']} people · ${_statusLabel[g['status']] ?? g['status']}', maxLines: 2),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => context.push('/groups/${g['id']}'),
-                        ),
-                      ),
-                  ],
+            data: (list) {
+              final past = list.where((g) => ['ORDERED', 'CANCELED', 'EXPIRED'].contains(g['status'])).toList();
+              return past.isEmpty
+                  ? [Text('No past group orders yet.', style: text.bodyMedium?.copyWith(color: c.muted))]
+                  : [for (final g in past) _GroupTile(g: g, key: ValueKey('group-${g['id']}'))];
+            },
           ),
         ]),
       ),
@@ -252,8 +293,8 @@ class _GroupJoinLinkScreenState extends ConsumerState<GroupJoinLinkScreen> {
 // ===================================================================== Group room
 class GroupRoomScreen extends ConsumerStatefulWidget {
   final String groupId;
-  final bool showInvite;
-  const GroupRoomScreen({super.key, required this.groupId, this.showInvite = false});
+  final bool showInvite, showPeople;
+  const GroupRoomScreen({super.key, required this.groupId, this.showInvite = false, this.showPeople = false});
   @override
   ConsumerState<GroupRoomScreen> createState() => _GroupRoomScreenState();
 }
@@ -274,6 +315,7 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
         if (mounted && g.isNotEmpty) _invite(g);
       });
     }
+    if (widget.showPeople) WidgetsBinding.instance.addPostFrameCallback((_) => _people());
   }
 
   @override
@@ -282,7 +324,10 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
     super.dispose();
   }
 
-  void _refresh() => ref.invalidate(groupProvider(widget.groupId));
+  void _refresh() {
+    ref.invalidate(groupProvider(widget.groupId));
+    ref.invalidate(myGroupsProvider); // keeps the hub and the Home badge current
+  }
 
   Future<void> _run(Future<void> Function(GroupApi api) work, {String? success}) async {
     if (busy) return;
@@ -397,11 +442,11 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
             children: [
               _Summary(g: g),
               const SizedBox(height: 12),
-              _Members(g: g),
+              _Members(g: g, onAddPerson: _people, onRemovePerson: (m) => _removePerson(g, m)),
               const SizedBox(height: 12),
               _StatusPanel(g: g, busy: busy, run: _run, onAlternatives: () => _alternatives(g), onCheckout: () => _checkout(g), onPropose: () => _propose(g)),
               const SizedBox(height: 12),
-              _SharedCart(g: g, busy: busy, run: _run, onAdd: () => _addFood(g)),
+              _SharedCart(g: g, busy: busy, run: _run, onAdd: (forMemberId) => _addFood(g, forMemberId: forMemberId)),
               if (g['pricing'] != null) ...[const SizedBox(height: 12), _PriceCard(g: g)],
               if (g['split'] != null) ...[const SizedBox(height: 12), _SplitCard(g: g, busy: busy, run: _run)],
               if (g['pricingError'] != null)
@@ -414,14 +459,35 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
   }
 
   // ------------------------------------------------------------- sheets
-  Future<void> _addFood(Json g) async {
+  Future<void> _addFood(Json g, {String? forMemberId}) async {
     final restaurantId = (g['restaurant'] as Map)['id'] as String;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
-      builder: (_) => _AddFoodSheet(groupId: widget.groupId, restaurantId: restaurantId, onAdded: _refresh),
+      builder: (_) => _AddFoodSheet(groupId: widget.groupId, restaurantId: restaurantId, onAdded: _refresh, forMemberId: forMemberId),
     );
+  }
+
+  /// "Order for friends": add people by name (no account, invite or OTP for them).
+  Future<void> _people() async {
+    await showDialog<void>(context: context, useRootNavigator: true, builder: (_) => _PeopleDialog(groupId: widget.groupId, onChanged: _refresh));
+    _refresh();
+  }
+
+  Future<void> _removePerson(Json g, Map m) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${m['name']}?'),
+        content: const Text('Their food is removed from the group cart too.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
+          FilledButton(key: const ValueKey('guest-remove-confirm'), onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (ok == true) await _run((api) => api.removeGuest(widget.groupId, m['userId'] as String, g['version'] as int), success: '${m['name']} removed');
   }
 
   Future<void> _propose(Json g) async {
@@ -536,19 +602,33 @@ class _Summary extends StatelessWidget {
 
 class _Members extends StatelessWidget {
   final Json g;
-  const _Members({required this.g});
+  final VoidCallback onAddPerson;
+  final void Function(Map member) onRemovePerson;
+  const _Members({required this.g, required this.onAddPerson, required this.onRemovePerson});
   @override
   Widget build(BuildContext context) {
     final c = FinderColors.of(context);
     final text = Theme.of(context).textTheme;
     final members = (g['members'] as List).cast<Map>();
+    final manage = (g['permissions'] as Map)['canManageGuests'] == true;
     return _Card(
+      cardKey: const ValueKey('group-members'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${members.length} ${members.length == 1 ? 'person' : 'people'}', style: text.titleSmall),
+        Row(children: [
+          Expanded(child: Text('${members.length} ${members.length == 1 ? 'person' : 'people'}', style: text.titleSmall)),
+          if (manage)
+            TextButton.icon(key: const ValueKey('group-add-person'), onPressed: onAddPerson, icon: const Icon(Icons.person_add_alt, size: 18), label: const Text('Add person')),
+        ]),
+        if (manage && members.length == 1)
+          Text('Ordering for friends? Add their names, then pick food for each person.', style: text.bodySmall?.copyWith(color: c.muted)),
         const SizedBox(height: 8),
         Wrap(spacing: 10, runSpacing: 8, children: [
           for (final m in members)
-            Column(mainAxisSize: MainAxisSize.min, children: [
+            InkWell(
+              key: ValueKey('member-${m['userId']}'),
+              borderRadius: BorderRadius.circular(12),
+              onTap: manage && m['isGuest'] == true ? () => onRemovePerson(m) : null,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
               CircleAvatar(
                 radius: 20,
                 backgroundColor: m['isOrganizer'] == true ? c.gold : c.paleGreen,
@@ -559,7 +639,8 @@ class _Members extends StatelessWidget {
                 width: 68,
                 child: Text('${m['isYou'] == true ? 'You' : m['name']}${m['isOrganizer'] == true ? ' ★' : ''}', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.labelSmall),
               ),
-            ]),
+              if (m['isGuest'] == true) Text('added by you', style: text.labelSmall?.copyWith(color: c.muted, fontSize: 10)),
+            ])),
         ]),
       ]),
     );
@@ -570,7 +651,7 @@ class _SharedCart extends StatelessWidget {
   final Json g;
   final bool busy;
   final Future<void> Function(Future<void> Function(GroupApi), {String? success}) run;
-  final VoidCallback onAdd;
+  final void Function(String? forMemberId) onAdd;
   const _SharedCart({required this.g, required this.busy, required this.run, required this.onAdd});
   @override
   Widget build(BuildContext context) {
@@ -578,9 +659,19 @@ class _SharedCart extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final items = (g['items'] as List).cast<Map>();
     final editable = (g['permissions'] as Map)['canEditOwnItems'] == true;
-    final byMember = <String, List<Map>>{};
+    final members = (g['members'] as List).cast<Map>();
+    final org = g['isOrganizer'] == true;
+    final hasGuests = members.any((m) => m['isGuest'] == true);
+    // On one phone the organizer sees a section per person, even before they have food.
+    final byMember = <String, ({String name, Map? member, List<Map> items})>{};
+    if (org && hasGuests) {
+      for (final m in members) {
+        byMember[m['userId'] as String] = (name: m['name'] as String, member: m, items: <Map>[]);
+      }
+    }
     for (final i in items) {
-      byMember.putIfAbsent(i['memberName'] as String, () => []).add(i);
+      final id = i['memberId'] as String;
+      byMember.putIfAbsent(id, () => (name: i['memberName'] as String, member: members.where((m) => m['userId'] == id).firstOrNull, items: <Map>[])).items.add(i);
     }
     final rev = g['cartRevision'] as int;
     return _Card(
@@ -592,16 +683,31 @@ class _SharedCart extends StatelessWidget {
             FilledButton.icon(
               key: const ValueKey('group-add-food'),
               style: FilledButton.styleFrom(backgroundColor: c.forest, foregroundColor: c.onForest, minimumSize: const Size(40, 40)),
-              onPressed: busy ? null : onAdd,
+              onPressed: busy ? null : () => onAdd(null),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add food'),
             ),
         ]),
-        if (items.isEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text('No food yet. Everyone adds their own dishes.', style: text.bodyMedium?.copyWith(color: c.muted))),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(hasGuests && org ? 'No food yet. Tap "Add" next to each person to pick their dishes.' : 'No food yet. Everyone adds their own dishes.', style: text.bodyMedium?.copyWith(color: c.muted)),
+          ),
         for (final entry in byMember.entries) ...[
           const SizedBox(height: 10),
-          Text(entry.key, style: text.labelLarge?.copyWith(color: c.muted)),
-          for (final i in entry.value)
+          Row(children: [
+            Expanded(child: Text(entry.value.name, style: text.labelLarge?.copyWith(color: c.muted))),
+            if (editable && org && hasGuests && (entry.value.member?['isGuest'] == true || entry.value.member?['isYou'] == true))
+              TextButton.icon(
+                key: ValueKey('add-for-${entry.key}'),
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                onPressed: busy ? null : () => onAdd(entry.value.member?['isGuest'] == true ? entry.key : null),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add'),
+              ),
+          ]),
+          if (entry.value.items.isEmpty) Text('Nothing yet', style: text.bodySmall?.copyWith(color: c.muted)),
+          for (final i in entry.value.items)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(children: [
@@ -625,7 +731,7 @@ class _SharedCart extends StatelessWidget {
                     onPressed: busy ? null : () => _pickSharers(context, g, Json.from(i), run),
                     icon: Icon((i['sharedWith'] as List).isEmpty ? Icons.call_split : Icons.people_alt, size: 20, color: (i['sharedWith'] as List).isEmpty ? null : c.forest),
                   ),
-                if (i['mine'] == true && editable) ...[
+                if ((i['canEdit'] ?? i['mine']) == true && editable) ...[
                   IconButton(
                     tooltip: 'Fewer',
                     visualDensity: VisualDensity.compact,
@@ -676,7 +782,7 @@ class _PriceCard extends StatelessWidget {
         Text('About ${rupees((total / people).round())} per person, for information only.', style: text.bodySmall?.copyWith(color: c.muted)),
         const SizedBox(height: 6),
         for (final m in (g['contributions'] as List).cast<Map>())
-          _row(context, '${m['name']} · ${m['itemCount']} items', rupees(m['itemTotalPaise'] as int)),
+          _row(context, '${m['name']} · ${m['itemCount']} ${m['itemCount'] == 1 ? 'item' : 'items'}', rupees(m['itemTotalPaise'] as int)),
       ]),
     );
   }
@@ -708,7 +814,7 @@ class _StatusPanel extends StatelessWidget {
     Color bg = c.card;
     switch (status) {
       case 'OPEN':
-        children.add(Text(org ? 'When everyone has added their food, lock the group to ask the restaurant for a price.' : 'Add your dishes. The organizer locks the group when everyone is ready.', style: text.bodyMedium));
+        children.add(Text(org ? 'When everyone\'s food is in, lock the group to ask the restaurant for a price.' : 'Add your dishes. The organizer locks the group when everyone is ready.', style: text.bodyMedium));
         if (perm['canLock'] == true) children.add(button('Lock group', () => run((api) => api.action(id, 'lock', v), success: 'Group locked'), key: const ValueKey('group-lock'), icon: Icons.lock_outline));
         if (perm['canLeave'] == true) children.add(button('Leave group', () => run((api) => api.leave(id), success: 'You left the group'), primary: false, icon: Icons.logout));
       case 'LOCKED':
@@ -779,14 +885,16 @@ class _StatusPanel extends StatelessWidget {
 // ------------------------------------------------------------- Add food
 class _AddFoodSheet extends ConsumerStatefulWidget {
   final String groupId, restaurantId;
+  final String? forMemberId;
   final VoidCallback onAdded;
-  const _AddFoodSheet({required this.groupId, required this.restaurantId, required this.onAdded});
+  const _AddFoodSheet({required this.groupId, required this.restaurantId, required this.onAdded, this.forMemberId});
   @override
   ConsumerState<_AddFoodSheet> createState() => _AddFoodSheetState();
 }
 
 class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
   bool busy = false;
+  late String? forMemberId = widget.forMemberId;
 
   Future<void> _choose(Dish d) async {
     final variants = d.variantOptions.where((v) => v.available).toList();
@@ -836,9 +944,10 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
     setState(() => busy = true);
     try {
       final g = await ref.read(groupProvider(widget.groupId).future);
-      await ref.read(groupApiProvider).addItem(widget.groupId, menuItemId: d.id, quantity: qty, variantId: variantId, addOnIds: picked.toList(), expectedRevision: g['cartRevision'] as int);
+      await ref.read(groupApiProvider).addItem(widget.groupId, menuItemId: d.id, quantity: qty, variantId: variantId, addOnIds: picked.toList(), expectedRevision: g['cartRevision'] as int, forMemberId: forMemberId);
       widget.onAdded();
-      if (mounted) _toast(context, 'Added $qty × ${d.name}');
+      final who = forMemberId == null ? '' : ' for ${(g['members'] as List).cast<Map>().where((m) => m['userId'] == forMemberId).firstOrNull?['name'] ?? 'them'}';
+      if (mounted) _toast(context, 'Added $qty × ${d.name}$who');
     } catch (e) {
       widget.onAdded();
       if (mounted) _toast(context, groupError(e));
@@ -851,10 +960,37 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
   Widget build(BuildContext context) {
     final menu = ref.watch(restaurantMenuProvider(widget.restaurantId));
     final text = Theme.of(context).textTheme;
+    final c = FinderColors.of(context);
+    final g = ref.watch(groupProvider(widget.groupId)).asData?.value;
+    final people = g == null || g['isOrganizer'] != true ? const <Map>[] : (g['members'] as List).cast<Map>().where((m) => m['isYou'] == true || m['isGuest'] == true).toList();
+    final forName = forMemberId == null ? null : people.where((m) => m['userId'] == forMemberId).firstOrNull?['name'] as String?;
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * .8,
       child: Column(children: [
-        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Row(children: [Expanded(child: Text('Add your food', style: text.titleLarge)), if (busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))])),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Row(children: [
+            Expanded(child: Text(forName == null ? 'Add your food' : 'Add food for $forName', style: text.titleLarge)),
+            if (busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          ]),
+        ),
+        if (people.length > 1)
+          SizedBox(
+            height: 44,
+            child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), children: [
+              for (final m in people)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    key: ValueKey('for-${m['userId']}'),
+                    selected: (m['isYou'] == true && forMemberId == null) || m['userId'] == forMemberId,
+                    selectedColor: c.paleGreen,
+                    label: Text(m['isYou'] == true ? 'You' : m['name'] as String),
+                    onSelected: (_) => setState(() => forMemberId = m['isYou'] == true ? null : m['userId'] as String),
+                  ),
+                ),
+            ]),
+          ),
         Expanded(
           child: menu.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -1060,35 +1196,229 @@ class _AlternativesSheetState extends ConsumerState<_AlternativesSheet> {
   }
 }
 
-/// Compact entry for Home / restaurant pages.
-class GroupOrderEntry extends StatelessWidget {
+/// Compact Group Order button for the Home header (under the search bar, on the forest band).
+/// Opens the hub: start (for friends or by invite), join with a code, or resume an active group.
+class GroupOrderEntry extends ConsumerWidget {
   const GroupOrderEntry({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = FinderColors.of(context);
+    final text = Theme.of(context).textTheme;
+    final active = ref.watch(myGroupsProvider).asData?.value.where((g) => !['ORDERED', 'CANCELED', 'EXPIRED'].contains(g['status'])).length ?? 0;
+    return Semantics(
+      button: true,
+      label: 'Group Order. Order together. Save together.${active > 0 ? ' $active active' : ''}',
+      excludeSemantics: true,
+      child: Material(
+        color: c.onForest.withValues(alpha: .1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.onForest.withValues(alpha: .18))),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: const ValueKey('group-entry'),
+          onTap: () => context.push('/groups'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+            child: Row(children: [
+              Container(width: 32, height: 32, decoration: BoxDecoration(color: c.gold, shape: BoxShape.circle), child: Icon(Icons.groups_2, size: 18, color: c.forest)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text('Group Order', style: text.titleSmall?.copyWith(color: c.onForest, fontWeight: FontWeight.w800)),
+                  Text('Order together. Save together.', maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodySmall?.copyWith(color: c.onForest.withValues(alpha: .8))),
+                ]),
+              ),
+              if (active > 0)
+                Container(
+                  key: const ValueKey('group-entry-active'),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: c.gold, borderRadius: BorderRadius.circular(999)),
+                  child: Text('$active active', style: text.labelSmall?.copyWith(color: c.forest, fontWeight: FontWeight.w800)),
+                ),
+              Icon(Icons.chevron_right, color: c.onForest),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeTile extends StatelessWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
+  const _ModeTile({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap});
   @override
   Widget build(BuildContext context) {
     final c = FinderColors.of(context);
     final text = Theme.of(context).textTheme;
     return Material(
-      color: c.goldBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: c.gold.withValues(alpha: .4))),
+      color: c.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: c.outline)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        key: const ValueKey('group-entry'),
-        onTap: () => context.push('/groups'),
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          padding: const EdgeInsets.all(14),
           child: Row(children: [
-            Container(width: 40, height: 40, decoration: BoxDecoration(color: c.forest, shape: BoxShape.circle), child: Icon(Icons.groups_2_outlined, size: 20, color: c.gold)),
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: c.paleGreen, shape: BoxShape.circle), child: Icon(icon, color: c.forest)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Group Order', style: text.titleSmall?.copyWith(color: c.forest, fontWeight: FontWeight.w800)),
-                Text('Order with friends and ask for a group price', maxLines: 2, overflow: TextOverflow.ellipsis, style: text.bodySmall?.copyWith(color: c.muted)),
+                Text(title, style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text(subtitle, style: text.bodySmall?.copyWith(color: c.muted)),
               ]),
             ),
             Icon(Icons.chevron_right, color: c.forest),
           ]),
         ),
       ),
+    );
+  }
+}
+
+class _GroupTile extends StatelessWidget {
+  final Json g;
+  const _GroupTile({super.key, required this.g});
+  @override
+  Widget build(BuildContext context) {
+    final c = FinderColors.of(context);
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(backgroundColor: c.paleGreen, child: Icon(Icons.groups_2_outlined, color: c.forest)),
+        title: Text((g['name'] as String?) ?? g['restaurantName'] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text('${g['restaurantName']} · ${g['memberCount']} ${g['memberCount'] == 1 ? 'person' : 'people'} · ${_statusLabel[g['status']] ?? g['status']}', maxLines: 2),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push('/groups/${g['id']}'),
+      ),
+    );
+  }
+}
+
+/// Restaurants for a new group: kitchens serving the selected delivery area first (the server re-checks).
+class _RestaurantPicker extends ConsumerWidget {
+  final String mode;
+  const _RestaurantPicker({required this.mode});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = FinderColors.of(context);
+    final text = Theme.of(context).textTheme;
+    final area = ref.watch(deliveryServiceAreaProvider);
+    final catalog = ref.watch(homeCatalogProvider);
+    bool serves(Restaurant r) => area != null && (r.localityName == area.name || r.serviceAreaNames.contains(area.name));
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * .8,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 4), child: Text('Choose a restaurant', style: text.titleLarge)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Text(mode == groupModeFriends ? 'Next, add your friends\' names and pick food for each person.' : 'Next, you\'ll get a code to share with friends.', style: text.bodySmall?.copyWith(color: c.muted)),
+        ),
+        Expanded(
+          child: catalog.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text(groupError(e))),
+            data: (cat) {
+              final list = [...cat.restaurants]..sort((a, b) => (serves(b) ? 1 : 0) - (serves(a) ? 1 : 0));
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: list.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final r = list[i];
+                  final open = r.operatingStatus == 'OPEN' && r.deliveryAvailable;
+                  return ListTile(
+                    key: ValueKey('pick-${r.id}'),
+                    contentPadding: EdgeInsets.zero,
+                    enabled: open,
+                    leading: ClipRRect(borderRadius: BorderRadius.circular(10), child: FoodPhoto(r.image, width: 52, height: 52)),
+                    title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text([r.cuisine, if (r.localityName != null) r.localityName!.split(',').first, if (!open) 'Closed now' else if (serves(r)) 'Delivers to you'].join(' · '),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(context, (id: r.id, name: r.name)),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// "Order for friends": add people by name. Each add is saved at once (the server is the source of truth).
+class _PeopleDialog extends ConsumerStatefulWidget {
+  final String groupId;
+  final VoidCallback onChanged;
+  const _PeopleDialog({required this.groupId, required this.onChanged});
+  @override
+  ConsumerState<_PeopleDialog> createState() => _PeopleDialogState();
+}
+
+class _PeopleDialogState extends ConsumerState<_PeopleDialog> {
+  final name = TextEditingController();
+  final added = <String>[];
+  String? error;
+  bool busy = false;
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add() async {
+    final n = name.text.trim();
+    if (n.isEmpty || busy) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      ref.invalidate(groupProvider(widget.groupId));
+      final g = await ref.read(groupProvider(widget.groupId).future);
+      await ref.read(groupApiProvider).addGuest(widget.groupId, n, g['version'] as int);
+      added.add(n);
+      name.clear();
+      widget.onChanged();
+    } catch (e) {
+      error = groupError(e);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = FinderColors.of(context);
+    final text = Theme.of(context).textTheme;
+    return AlertDialog(
+      title: const Text('Who are you ordering for?'),
+      content: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Just type their names. They don\'t need the app, an account or a code. You pick their food and pay the order.', style: text.bodySmall?.copyWith(color: c.muted)),
+          const SizedBox(height: 10),
+          TextField(
+            key: const ValueKey('guest-name'),
+            controller: name,
+            autofocus: true,
+            maxLength: 40,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: 'Name', counterText: '', errorText: error),
+            onSubmitted: (_) => _add(),
+          ),
+          if (added.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [for (final n in added) Chip(avatar: Icon(Icons.check, size: 16, color: c.forest), label: Text(n), visualDensity: VisualDensity.compact)]),
+          ],
+        ]),
+      ),
+      actions: [
+        TextButton(key: const ValueKey('guest-done'), onPressed: () => Navigator.pop(context), child: Text(added.isEmpty ? 'Cancel' : 'Done')),
+        FilledButton.icon(key: const ValueKey('guest-add'), onPressed: busy ? null : _add, icon: const Icon(Icons.person_add_alt, size: 18), label: Text(added.isEmpty ? 'Add' : 'Add another')),
+      ],
     );
   }
 }

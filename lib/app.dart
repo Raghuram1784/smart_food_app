@@ -105,7 +105,7 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
     GoRoute(path: '/groups', builder: (context, state) => const CommerceGate(child: GroupHubScreen())),
     GoRoute(
       path: '/groups/:id',
-      builder: (context, state) => CommerceGate(child: GroupRoomScreen(groupId: state.pathParameters['id']!, showInvite: state.uri.queryParameters['invite'] == '1')),
+      builder: (context, state) => CommerceGate(child: GroupRoomScreen(groupId: state.pathParameters['id']!, showInvite: state.uri.queryParameters['invite'] == '1', showPeople: state.uri.queryParameters['friends'] == '1')),
     ),
     // Shareable invite link: <APP_LINK_BASE>/group/<token> (sign-in first, then join).
     GoRoute(path: '/group/:token', builder: (context, state) => CommerceGate(child: GroupJoinLinkScreen(token: state.pathParameters['token']!))),

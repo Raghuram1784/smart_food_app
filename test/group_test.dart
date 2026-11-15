@@ -252,4 +252,63 @@ void main() {
     await _settle(tester);
     expect(repo.posts.containsKey('POST groups/$gid/split'), isFalse);
   });
+
+  Json friendsFixture() {
+    final g = groupFixture();
+    g['members'] = [
+      {'userId': 'u-a', 'name': 'Asha', 'isOrganizer': true, 'isGuest': false, 'isYou': true},
+      {'userId': 'g-ravi', 'name': 'Ravi', 'isOrganizer': false, 'isGuest': true, 'isYou': false},
+      {'userId': 'g-meena', 'name': 'Meena', 'isOrganizer': false, 'isGuest': true, 'isYou': false},
+    ];
+    g['items'] = [
+      {'id': 'i-r', 'memberId': 'g-ravi', 'memberName': 'Ravi', 'mine': false, 'forGuest': true, 'canEdit': true, 'menuItemId': 'm2', 'name': 'Veg Dum Biryani', 'imageKey': 'biryani', 'isVegetarian': true, 'available': true,
+        'quantity': 1, 'version': 1, 'variant': null, 'addOns': [], 'lineTotalPaise': 15900, 'sharedWith': [], 'sharedWithNames': [], 'canShare': true},
+    ];
+    (g['permissions'] as Map)['canManageGuests'] = true;
+    g['memberCount'] = 3;
+    return g;
+  }
+
+  testWidgets('home entry: compact Group Order button with subtitle opens the hub', (tester) async {
+    final repo = GroupFake(groupFixture());
+    await _mount(tester, repo, const Scaffold(body: Padding(padding: EdgeInsets.all(16), child: GroupOrderEntry())), size: const Size(360, 640), text: 1.5);
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Group Order'), findsOneWidget);
+    expect(find.text('Order together. Save together.'), findsOneWidget);
+    expect(tester.getSize(find.byKey(const ValueKey('group-entry'))).height, lessThan(90), reason: 'compact, not a banner');
+  });
+
+  testWidgets('hub: both ways to start, join with a code', (tester) async {
+    final repo = GroupFake(groupFixture());
+    await _mount(tester, repo, const GroupHubScreen(), size: const Size(360, 900), text: 1.3);
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Order for friends'), findsOneWidget);
+    expect(find.text('Invite friends'), findsOneWidget);
+    expect(find.byKey(const ValueKey('join-code')), findsOneWidget);
+  });
+
+  testWidgets('order for friends: per-person sections, organizer edits a guest line, adds food for a guest, adds a person', (tester) async {
+    final repo = GroupFake(friendsFixture());
+    await _mount(tester, repo, const GroupRoomScreen(groupId: gid), size: const Size(360, 2400), text: 1.3);
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('added by you'), findsNWidgets(2));
+    expect(find.text('Nothing yet'), findsNWidgets(2), reason: 'Asha and Meena have no food yet');
+    expect(find.byTooltip('More'), findsOneWidget, reason: 'organizer controls the guest line');
+    await tester.tap(find.byTooltip('More'));
+    await _settle(tester);
+    expect(repo.posts['PATCH groups/$gid/items/i-r'], {'quantity': 2, 'expectedRevision': 4});
+    // Add a person by name.
+    await tester.tap(find.byKey(const ValueKey('group-add-person')));
+    await _settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('guest-name')), 'Kiran');
+    await tester.tap(find.byKey(const ValueKey('guest-add')));
+    await _settle(tester);
+    expect(repo.posts['POST groups/$gid/guests'], {'name': 'Kiran', 'expectedVersion': 7});
+    await tester.tap(find.byKey(const ValueKey('guest-done')));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('add-for-g-meena')), findsOneWidget);
+  });
 }

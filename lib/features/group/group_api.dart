@@ -17,8 +17,13 @@ class GroupApi {
   Future<List<Json>> mine() async => [for (final g in await repo.request('GET', 'groups') as List) Json.from(g as Map)];
   Future<Json> get(String id) async => Json.from(await repo.request('GET', 'groups/$id'));
   Future<Json> invite(String id) async => Json.from(await repo.request('POST', 'groups/$id/invite'));
-  Future<Json> addItem(String id, {required String menuItemId, required int quantity, String? variantId, List<String> addOnIds = const [], required int expectedRevision}) async =>
-      Json.from(await repo.request('POST', 'groups/$id/items', {'menuItemId': menuItemId, 'quantity': quantity, 'variantId': ?variantId, 'addOnIds': addOnIds, 'expectedRevision': expectedRevision}));
+  Future<Json> addItem(String id, {required String menuItemId, required int quantity, String? variantId, List<String> addOnIds = const [], required int expectedRevision, String? forMemberId}) async =>
+      Json.from(await repo.request('POST', 'groups/$id/items',
+          {'menuItemId': menuItemId, 'quantity': quantity, 'variantId': ?variantId, 'addOnIds': addOnIds, 'expectedRevision': expectedRevision, 'forMemberId': ?forMemberId}));
+
+  /// "Order for friends": people added by name only, managed by the organizer on this phone.
+  Future<Json> addGuest(String id, String name, int expectedVersion) async => Json.from(await repo.request('POST', 'groups/$id/guests', {'name': name, 'expectedVersion': expectedVersion}));
+  Future<Json> removeGuest(String id, String guestId, int expectedVersion) async => Json.from(await repo.request('DELETE', 'groups/$id/guests/$guestId?expectedVersion=$expectedVersion'));
   Future<Json> setQuantity(String id, String itemId, int quantity, int expectedRevision) async =>
       Json.from(await repo.request('PATCH', 'groups/$id/items/$itemId', {'quantity': quantity, 'expectedRevision': expectedRevision}));
   Future<Json> removeItem(String id, String itemId, int expectedRevision) async => Json.from(await repo.request('DELETE', 'groups/$id/items/$itemId?expectedRevision=$expectedRevision'));
