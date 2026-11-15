@@ -76,7 +76,7 @@ void main(){
    order=Json.from((await rider.post('operations/delivery/orders/$id/complete-handover',data:{'pin':pin,'expectedVersion':order['version']})).data['data']);expect(order['status'],'DELIVERED');expect(order['actualDeliveryAt'],isNotNull);
    await login('customer','/orders/$id');await waitFor(find.byType(ScheduleCard));await shot('05-samsung-delivered-window');
    expect(order['scheduleIndicator'],'DELIVERED_WITHIN_WINDOW');expect(events.contains('SCHEDULE_PREPARATION_DUE'),isTrue);expect(events.contains('ORDER_DELIVERED'),isTrue);
-   binding.reportData={'orderId':id,'orderNumber':order['orderNumber'],'device':'Samsung S23 Ultra SM-S918B','scheduledDeliveryAt':order['scheduledDeliveryAt'],'actualDeliveryAt':order['actualDeliveryAt'],'indicator':order['scheduleIndicator'],'events':events,'earlyPreparationStatus':early.statusCode,'flow':'UI slot selection and checkout; authorized API kitchen/pickup/OTP actions; UI rider invitation acceptance; real clock waits'};
+   binding.reportData={...?binding.reportData,'orderId':id,'orderNumber':order['orderNumber'],'device':'Samsung S23 Ultra SM-S918B','scheduledDeliveryAt':order['scheduledDeliveryAt'],'actualDeliveryAt':order['actualDeliveryAt'],'indicator':order['scheduleIndicator'],'events':events,'earlyPreparationStatus':early.statusCode,'flow':'UI slot selection and checkout; authorized API kitchen/pickup/OTP actions; UI rider invitation acceptance; real clock waits'};
   }finally{socket.dispose();for(final client in clients.values){client.close();}}
  },timeout:const Timeout(Duration(minutes:12)));
 }
