@@ -1,3 +1,4 @@
+import '../tracking/pickup_location.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,6 +126,12 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            key: const ValueKey('owner-pickup-location'),
+            tooltip: 'Set pickup location',
+            onPressed: () => setPickupLocation(context, ref, activeRestaurantId),
+            icon: const Icon(Icons.add_location_alt_outlined),
+          ),
           IconButton(
             key: const ValueKey('owner-group-proposals'),
             tooltip: 'Group proposals',

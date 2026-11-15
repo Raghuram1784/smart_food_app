@@ -52,6 +52,7 @@ app.*.map.json
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env.production.example
 backend/node_modules/
 backend/dist/
 backend/src/generated/

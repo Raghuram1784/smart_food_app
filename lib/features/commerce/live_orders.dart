@@ -24,6 +24,9 @@ class LiveOrderUpdate {
 
   /// Restaurant: group price requests changed for one of your outlets.
   final bool groupProposalsChanged;
+
+  /// F4: latest rider GPS fix for [orderId] (authorized rooms only). Display data, never stored.
+  final Map<String, dynamic>? location;
   const LiveOrderUpdate(
     this.connection, {
     this.orderId,
@@ -32,6 +35,7 @@ class LiveOrderUpdate {
     this.offersChanged = false,
     this.groupId,
     this.groupProposalsChanged = false,
+    this.location,
   });
 
   bool get isHandoverIssued =>
@@ -156,6 +160,16 @@ final liveOrdersProvider = StreamProvider<LiveOrderUpdate>((ref) {
         groupId: raw is Map ? raw['groupId'] as String? : null,
         eventType: raw is Map ? raw['event'] as String? : null,
         groupProposalsChanged: true,
+      ),
+    );
+  });
+  socket.on('delivery.location', (dynamic raw) {
+    if (raw is! Map || raw['orderId'] is! String) return;
+    emit(
+      LiveOrderUpdate(
+        'Live updates connected',
+        orderId: raw['orderId'] as String,
+        location: Map<String, dynamic>.from(raw),
       ),
     );
   });

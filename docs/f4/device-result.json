@@ -1,0 +1,12 @@
+{
+  "orderNumber": "FD-722D1B7AB64A3C4317A3",
+  "device": "Samsung S23 Ultra SM-S918B (single phone: rider, then customer)",
+  "firstFixAccuracyMeters": 11,
+  "fixesWhileScreenOff": 2,
+  "customerFreshnessAtCapture": "LIVE",
+  "etaSource": "ESTIMATE",
+  "routingProvider": "osrm",
+  "postDeliveryFixStatus": 410,
+  "trackingActiveAfterDelivery": false,
+  "flow": "UI checkout (immediate), UI rider acceptance and live-location start, real phone GPS, screen-off via adb, UI customer map; kitchen/pickup/OTP via authorized REST"
+}

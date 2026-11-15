@@ -1,3 +1,4 @@
+import '../tracking/tracking_api.dart';
 import '../scheduling/schedule_widgets.dart';
 import 'customer_handover_card.dart';
 import 'live_orders.dart';
@@ -362,6 +363,10 @@ class _OrderSummaryCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (!owner && isTrackable(order)) ...[
+                    TrackOrderButton(orderId: order['id'] as String, compact: true),
+                    const SizedBox(width: 4),
+                  ],
                   TextButton(
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -585,6 +590,11 @@ class OrderDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
                 children: [
                   LiveOrderBar(path: 'orders/$id', orderId: id),
+                  if (isTrackable(o))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: TrackOrderButton(orderId: id),
+                    ),
                   ScheduleCard(order: o),
                   ScheduledCancelButton(order: o),
                   OrderTimeline(order: o),

@@ -40,6 +40,11 @@ export class OrderGateway implements OnModuleDestroy {
     if(!this.server||!rooms.length)return;
     this.server.to(rooms).emit(event,payload);
   }
+  /** F4: latest rider fix for one order, only to that order's customer, its assigned rider and dispatch. */
+  emitLocation(o:{customerId:string;riderId:string},payload:{orderId:string;latitude:number;longitude:number;accuracyMeters:number;headingDegrees:number|null;speedMps:number|null;recordedAt:string}){
+    if(!this.server)return;
+    this.server.to(['customer:'+o.customerId,'delivery:'+o.riderId,'dispatch']).emit('delivery.location',payload);
+  }
   async revalidate(){if(!this.server)return;for(const socket of this.server.sockets.sockets.values()){try{await this.rooms(socket);}catch{socket.disconnect(true);}}}
   @SubscribeMessage('order.subscribe') async subscribe(@ConnectedSocket() socket:Socket,@MessageBody() body:unknown){
     try{

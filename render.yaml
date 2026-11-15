@@ -1,0 +1,61 @@
+# Render Blueprint for the NeuroX backend (proposal — nothing is created until it is applied in the
+# Render dashboard after approval). One always-on instance: the outbox dispatcher, F3 scheduler and
+# F4 tracking sweep are single-process components. Secrets are entered in the dashboard (sync: false).
+services:
+  - type: web
+    name: neurox-api
+    runtime: node
+    region: singapore
+    plan: starter            # always on, no sleeping; required for WebSockets and the scheduler
+    rootDir: backend
+    buildCommand: npm ci && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: node dist/src/main.js
+    healthCheckPath: /api/v1/health
+    autoDeploy: false        # deploy deliberately from main after review
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: API_PREFIX
+        value: api/v1
+      - key: LOG_LEVEL
+        value: info
+      - key: AUTH_SESSION_HOURS
+        value: "12"
+      - key: HANDOVER_KEY_VERSION
+        value: v1
+      - key: HANDOVER_TTL_SECONDS
+        value: "600"
+      - key: HANDOVER_REGENERATE_SECONDS
+        value: "60"
+      - key: ROUTING_PROVIDER
+        value: none          # labelled estimates until an approved routing provider is configured
+      # --- secrets / per-environment values: set in the dashboard, never committed ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: APP_LINK_BASE
+        sync: false
+      - key: HANDOVER_HMAC_KEY
+        sync: false
+      - key: HANDOVER_ENCRYPTION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: ROUTING_BASE_URL
+        sync: false
+      - key: DEMO_AUTH_ENABLED
+        sync: false
