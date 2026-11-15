@@ -7,7 +7,7 @@
 ### *Every choice, made with care.*
 
 **A real-time, AI-assisted food delivery platform for Hyderabad**
-Built by **Team NeuroX** for the **Accurate Background Hackathon 2026**
+Built by **Team NeuroX · KL University** for the **Accurate Background AI Hackathon 2026**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
@@ -21,8 +21,9 @@ Built by **Team NeuroX** for the **Accurate Background Hackathon 2026**
 <img src="docs/screenshots/app/customer-home.jpg" alt="Home" width="19%"> <img src="docs/screenshots/app/customer-ai-results.jpg" alt="AI Smart Food Finder" width="19%"> <img src="docs/screenshots/app/customer-split-by-person.jpg" alt="Bill split" width="19%"> <img src="docs/screenshots/app/customer-schedule-slot.jpg" alt="Scheduled delivery" width="19%"> <img src="docs/screenshots/app/customer-live-tracking.jpg" alt="Live tracking" width="19%">
 
 <a href="https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk"><img src="https://img.shields.io/badge/Download-Android%20APK-17342B?style=for-the-badge&logo=android&logoColor=white" alt="Download Android APK" height="44"></a>
+<a href="https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4"><img src="https://img.shields.io/badge/Download-Project%20Demonstration%20Video-9C4A37?style=for-the-badge&logo=youtube&logoColor=white" alt="Download Project Demonstration Video" height="44"></a>
 
-**[Download Samori.apk](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk)** · [Release notes](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Hackathon repository release](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/tag/v1.1.0)
+**[Download Android APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk)** · **[Download Project Demonstration Video](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4)** · [Release notes](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Hackathon repository release](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/tag/v1.1.0)
 
 **[For judges](#for-judges-install-and-try-it) · [Features](#implemented-features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Run it](#run-it-locally) · [Tests](#testing-evidence) · [Deployment](#deployment) · [Team](#team-neurox)**
 
@@ -37,6 +38,8 @@ Built by **Team NeuroX** for the **Accurate Background Hackathon 2026**
 3. Open **SAMORI** and sign in with the demo accounts shared with the submission (one each for Customer, Restaurant Owner, Delivery Partner and Admin). Credentials are not published here.
 4. The app connects to the hosted API on Render. The free server sleeps when idle, so the **first screen can take up to a minute** to load.
 5. Payments run in **Razorpay Test Mode**: no real money moves. Use Razorpay's published test card or test UPI on the payment screen.
+
+**Demonstration video:** [Team-NeuroX_KL_University.mp4](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) (9:59, MP4 with voice-over) shows every feature end to end.
 
 **Suggested 5-minute tour**
 - **Customer:** set the delivery address to Gachibowli → try **Kids Meals** and the **AI Smart Food Finder** → order and pay in test mode → follow live tracking.
@@ -433,7 +436,7 @@ Configuration lives in [`render.yaml`](render.yaml) and the [production settings
 |---|---|
 | Personal repository | [Raghuram1784/smart_food_app](https://github.com/Raghuram1784/smart_food_app) |
 | Hackathon repository | [Accurate-Hackathon/KL-NeuroX](https://github.com/Accurate-Hackathon/KL-NeuroX) |
-| Release | [Samori v1.1.0 · Hackathon Edition](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Download APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk) |
+| Release | [Samori v1.1.0 · Hackathon Edition](https://github.com/Raghuram1784/smart_food_app/releases/tag/v1.1.0) · [Download APK](https://github.com/Raghuram1784/smart_food_app/releases/latest/download/Samori.apk) · [Demo video](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) |
 | Default branch | `main` (kept identical in both repositories) |
 | Layout | `lib/` Flutter app · `backend/` NestJS API and Prisma schema · `docs/` design notes, evidence and screenshots |
 
