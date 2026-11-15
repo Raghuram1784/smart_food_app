@@ -133,6 +133,14 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
             icon: const Icon(Icons.add_location_alt_outlined),
           ),
           IconButton(
+            key: const ValueKey('owner-kids-meals'),
+            tooltip: 'Kids Meals',
+            onPressed: () => context.push(
+              '/owner/kids-meals?restaurantId=$activeRestaurantId&name=${Uri.encodeComponent(activeRestaurant.name)}',
+            ),
+            icon: const Icon(Icons.child_care_rounded),
+          ),
+          IconButton(
             key: const ValueKey('owner-group-proposals'),
             tooltip: 'Group proposals',
             onPressed: () => context.push(

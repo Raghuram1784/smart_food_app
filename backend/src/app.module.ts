@@ -16,5 +16,6 @@ import { AreasModule } from './modules/areas/areas.module';
 import { FoodFinderModule } from './modules/food-finder/food-finder.module';
 import { GroupModule } from './modules/group/group.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
-@Module({imports:[SchedulingModule,OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule,GroupModule,TrackingModule]})
+import { InsightsModule } from './modules/insights/insights.module';
+@Module({imports:[SchedulingModule,OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule,GroupModule,TrackingModule,InsightsModule]})
 export class AppModule{}

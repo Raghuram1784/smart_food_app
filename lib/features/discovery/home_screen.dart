@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../insights/insights_screens.dart' show KidsMealsEntry;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -91,6 +92,8 @@ class _Header extends StatelessWidget {
                   const _SearchBar(),
                   const SizedBox(height: 10),
                   const GroupOrderEntry(),
+                  const SizedBox(height: 8),
+                  const KidsMealsEntry(),
                 ]),
               ),
             ),

@@ -48,7 +48,11 @@ Future<void> showDeliveryLocationSheet(BuildContext context, WidgetRef ref) {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (sheetContext) => _DeliveryLocationSheet(parentContext: context),
+    // Opened from the forest header, whose theme forces light text; render with the app theme.
+    builder: (sheetContext) => Theme(
+      data: Theme.of(Navigator.of(context, rootNavigator: true).context),
+      child: _DeliveryLocationSheet(parentContext: context),
+    ),
   );
 }
 

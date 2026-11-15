@@ -87,3 +87,16 @@ test('payment gating: test mode needs dev/test or an explicit production opt-in;
     assert.throws(() => paymentConfig(), /not configured/);
   } finally { for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]; Object.assign(process.env, saved); }
 });
+
+test('rider earnings: 10% default commission in integer paise; configurable; never negative', () => {
+  const { deliverySplit, riderCommissionBps } = require('../dist/src/modules/insights/insights.module');
+  assert.deepEqual(deliverySplit(100000, 1000), { grossPaise: 100000, commissionPaise: 10000, netPaise: 90000 });
+  assert.deepEqual(deliverySplit(3500, 1000), { grossPaise: 3500, commissionPaise: 350, netPaise: 3150 });
+  assert.deepEqual(deliverySplit(0, 1000), { grossPaise: 0, commissionPaise: 0, netPaise: 0 });
+  const saved = process.env.RIDER_COMMISSION_BPS;
+  try {
+    delete process.env.RIDER_COMMISSION_BPS; assert.equal(riderCommissionBps(), 1000);
+    process.env.RIDER_COMMISSION_BPS = '1500'; assert.equal(riderCommissionBps(), 1500);
+    process.env.RIDER_COMMISSION_BPS = '-5'; assert.equal(riderCommissionBps(), 1000);
+  } finally { if (saved === undefined) delete process.env.RIDER_COMMISSION_BPS; else process.env.RIDER_COMMISSION_BPS = saved; }
+});
