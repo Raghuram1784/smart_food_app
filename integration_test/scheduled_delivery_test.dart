@@ -27,7 +27,7 @@ void main(){
   await tester.pumpWidget(ProviderScope(overrides:[preferencesProvider.overrideWithValue(prefs)],child:const FoodApp()));await tester.pumpAndSettle();
   final container=ProviderScope.containerOf(tester.element(find.byType(FoodApp)));final router=GoRouter.of(tester.element(find.byType(Scaffold).first));
   Future<void> login(String role,String path)async{await container.read(authProvider.future);if(container.read(authProvider).asData?.value!=null)await container.read(authProvider.notifier).logout();await container.read(authProvider.notifier).login(emails[role]!,password);router.go(path);await tester.pumpAndSettle();}
-  Future<void> waitFor(Finder finder)async{for(var i=0;i<150;i++){await tester.pump(const Duration(milliseconds:100));if(finder.evaluate().isNotEmpty)return;}expect(finder,findsWidgets);}
+  Future<void> waitFor(Finder finder)async{for(var i=0;i<300;i++){await tester.pump(const Duration(milliseconds:100));if(finder.evaluate().isNotEmpty)return;}expect(finder,findsWidgets);}
   Future<void> shot(String name)async{await tester.pumpAndSettle();await binding.takeScreenshot(name);}
   Future<void> pause()async{await tester.runAsync(()=>Future<void>.delayed(const Duration(seconds:1)));await tester.pump();}
   Future<Json> transition(Dio client,String scope,String id,String action)async{

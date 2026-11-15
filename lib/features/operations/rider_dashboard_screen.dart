@@ -36,6 +36,11 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
   void initState() {
     super.initState();
     _activeTab = _normalizeTab(widget.tab);
+    // fireImmediately: an invitation that is already loaded when the screen opens is announced too.
+    ref.listenManual(riderOffersProvider, (_, next) {
+      final offers = next.asData?.value;
+      if (offers != null) _announce(offers);
+    }, fireImmediately: true);
     // Safety net besides Socket.IO: re-read persisted requests periodically while visible.
     _poll = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted && ref.read(riderPresenceProvider).isOnline) {
@@ -150,10 +155,6 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
         ref.invalidate(riderOffersProvider);
         ref.read(riderPresenceProvider.notifier).refresh();
       }
-    });
-    ref.listen(riderOffersProvider, (_, next) {
-      final offers = next.asData?.value;
-      if (offers != null) _announce(offers);
     });
 
     final offers = ref.watch(riderOffersProvider);
