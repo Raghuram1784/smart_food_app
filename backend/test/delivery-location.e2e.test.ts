@@ -37,7 +37,8 @@ test('customer delivery location, ownership and server-side serviceability', { t
   })).id;
   const users: any[] = [];
   const tokens: string[] = [];
-  const itemId = `c1-loc-${randomUUID().slice(0, 8)}`;
+  // One fixed fixture item (upserted) so repeated runs never accumulate catalog rows in the test DB.
+  const itemId = 'c1-loc-fixture';
 
   try {
     const hash = await new PasswordService().hash(password);
@@ -51,7 +52,8 @@ test('customer delivery location, ownership and server-side serviceability', { t
       }));
     }
     const section = await db.menuSection.findFirstOrThrow({ where: { restaurantId: rid } });
-    await db.menuItem.create({ data: { id: itemId, restaurantId: rid, sectionId: section.id, categoryId: 'dosa', name: 'Synthetic location meal', description: 'C1 fixture', imageKey: 'dosa', basePricePaise: 12000, isVegetarian: true } });
+    const fixture = { restaurantId: rid, sectionId: section.id, categoryId: 'dosa', name: 'Synthetic location meal', description: 'C1 fixture', imageKey: 'dosa', basePricePaise: 12000, isVegetarian: true, availabilityStatus: 'AVAILABLE' as const };
+    await db.menuItem.upsert({ where: { id: itemId }, create: { id: itemId, ...fixture }, update: fixture });
 
     await app.init();
     const api = request(app.getHttpServer());
