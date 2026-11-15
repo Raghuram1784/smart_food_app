@@ -311,7 +311,11 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       await as(owner).post(`restaurant/group-proposals/${s.proposal.id}/accept`).expect(200);
       s = await state(C, g5);
       assert.equal(s.status, 'ACCEPTED'); assert.equal(s.split.basis, 'AGREED'); assert.equal(s.split.sumPaise, s.proposal.agreedTotalPaise);
-      const out = (await as(C).post(`groups/${g5}/checkout`, { proposalId: s.proposal.id, expectedVersion: s.version, idempotencyKey: randomUUID() }).expect(200)).body.data;
+      const dates=(await as(C).get(`restaurants/${rid}/delivery-slots`).expect(200)).body.data.dates;
+      const slot=(await as(C).get(`restaurants/${rid}/delivery-slots?date=${dates[1]}`).expect(200)).body.data.slots[0];
+      const out = (await as(C).post(`groups/${g5}/checkout`, { proposalId: s.proposal.id, expectedVersion: s.version, idempotencyKey: randomUUID(),deliveryMode:'SCHEDULED',scheduledDeliveryAt:slot.scheduledDeliveryAt }).expect(200)).body.data;
+      const scheduled=await db.order.findUniqueOrThrow({where:{id:out.orderId}});
+      assert.equal(scheduled.deliveryMode,'SCHEDULED');assert.equal(scheduled.scheduledDeliveryAt.toISOString(),slot.scheduledDeliveryAt);
       assert.equal(out.finalPayablePaise, s.proposal.agreedTotalPaise);
       s = await state(C, g5);
       assert.equal(s.split.basis, 'FINAL'); assert.equal(s.split.sumPaise, out.finalPayablePaise);

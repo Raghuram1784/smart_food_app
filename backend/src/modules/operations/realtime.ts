@@ -64,7 +64,7 @@ export class OrderGateway implements OnModuleDestroy {
     }
     // Rider invitations: nudge riders who hold (or just lost) an invitation for this order.
     // The payload carries no order details; the app re-reads its offers over the API.
-    if(event.eventType==='ORDER_READY'||event.eventType==='RIDER_ASSIGNED'){
+    if(event.eventType==='ORDER_READY'||event.eventType==='RIDER_ASSIGNED'||event.eventType==='SCHEDULE_DISPATCH_DUE'){
       const offers=await this.database.client.deliveryOffer.findMany({where:{orderId:o.id},select:{riderId:true}});
       const riders=new Set(offers.map(x=>'delivery:'+x.riderId));
       for(const socket of this.server.sockets.sockets.values()){

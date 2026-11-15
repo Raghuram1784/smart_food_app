@@ -1,3 +1,4 @@
+import {SchedulingModule} from './modules/scheduling/scheduling.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
@@ -14,5 +15,5 @@ import { MenuModule } from './modules/menu/menu.module';
 import { AreasModule } from './modules/areas/areas.module';
 import { FoodFinderModule } from './modules/food-finder/food-finder.module';
 import { GroupModule } from './modules/group/group.module';
-@Module({imports:[OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule,GroupModule]})
+@Module({imports:[SchedulingModule,OperationsModule,PaymentsModule,CommerceModule,AuthModule,PricingModule,DatabaseModule,HealthModule,CatalogModule,RestaurantsModule,CategoriesModule,CuisinesModule,MenuModule,AreasModule,FoodFinderModule,GroupModule]})
 export class AppModule{}

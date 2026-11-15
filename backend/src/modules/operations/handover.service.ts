@@ -145,7 +145,7 @@ export class HandoverService {
       }
       const version=o.version+1;
       await tx.deliveryHandover.update({where:{id:h.id},data:{verifiedAt:now,consumedAt:now,encryptedPin:null,completionExpectedVersion:expectedVersion,completedOrderVersion:version}});
-      await tx.order.update({where:{id},data:{status:'DELIVERED',version}});
+      await tx.order.update({where:{id},data:{status:'DELIVERED',version,actualDeliveryAt:now}});
       await tx.deliveryAssignment.update({where:{orderId:id},data:{status:'DELIVERED',deliveredAt:now}});
       await this.audit(tx,h,p,'CONSUMED');
       const event=await tx.orderEvent.create({data:{orderId:id,actorUserId:p.userId,eventType:'ORDER_DELIVERED',previousStatus:'OUT_FOR_DELIVERY',newStatus:'DELIVERED',sequence:version,metadata:{handoverVerified:true,challengeVersion:h.challengeVersion}}});

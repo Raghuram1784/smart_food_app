@@ -78,7 +78,7 @@ export class PaymentsService {
       if(current.status==='AUTHORIZED'&&!captured&&!authorized)return;
       const state=captured?'CAPTURED':authorized?'AUTHORIZED':payment.status==='failed'?'FAILED':'READY';
       await tx.paymentAttempt.update({where:{id:a.id},data:{providerPaymentId:payment.id,status:state,lastVerificationAt:new Date(),failureCode:state==='FAILED'?'PROVIDER_PAYMENT_FAILED':null}});
-      await tx.order.update({where:{id:a.orderId},data:{...(captured?{version:{increment:1}}:{}),paymentStatus:captured?'PAID':authorized?'PAYMENT_AUTHORIZED':state==='FAILED'?'PAYMENT_FAILED':'PAYMENT_PENDING',...(captured&&order.status==='AWAITING_PAYMENT'?{status:'PENDING_RESTAURANT'}:{})}});
+      await tx.order.update({where:{id:a.orderId},data:{...(captured?{version:{increment:1},...(['CANCELED','REJECTED'].includes(order.status)?{refundReviewRequired:true}:{})}:{}),paymentStatus:captured?'PAID':authorized?'PAYMENT_AUTHORIZED':state==='FAILED'?'PAYMENT_FAILED':'PAYMENT_PENDING',...(captured&&order.status==='AWAITING_PAYMENT'?{status:'PENDING_RESTAURANT'}:{})}});
       if(captured){const event=await tx.orderEvent.upsert({where:{orderId_eventType:{orderId:a.orderId,eventType:'PAYMENT_CAPTURED'}},update:{},create:{orderId:a.orderId,eventType:'PAYMENT_CAPTURED',sequence:order.version+1,previousStatus:order.status,newStatus:order.status==='AWAITING_PAYMENT'?'PENDING_RESTAURANT':order.status,metadata:{provider:'RAZORPAY',environment:'TEST',attemptId:a.id}}});await queueEvent(tx,event.id);}
     });
   }

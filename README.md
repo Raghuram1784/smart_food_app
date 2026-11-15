@@ -2,7 +2,7 @@
 
 A real-time, PostgreSQL-backed food delivery platform built with Flutter and NestJS for the Accurate AI recruitment hackathon.
 
-Features an authentic Hyderabad-first marketplace (28 restaurants, 224 dishes, 10 localities), server-authoritative exact pricing engine, opaque session RBAC authentication, versioned cart/address commerce, Razorpay test payment integration, and a real-time fulfillment pipeline powered by a transactional PostgreSQL outbox, authenticated Socket.IO, and live multi-role operational dashboards.
+Features an authentic Hyderabad-first marketplace (current development catalog: 38 restaurants, 737 dishes, 10 localities), server-authoritative exact pricing engine, opaque session RBAC authentication, versioned cart/address commerce, Razorpay test payment integration, and a real-time fulfillment pipeline powered by a transactional PostgreSQL outbox, authenticated Socket.IO, and live multi-role operational dashboards.
 
 ---
 
@@ -44,7 +44,7 @@ Features an authentic Hyderabad-first marketplace (28 restaurants, 224 dishes, 1
   - Periodic 15-second socket session revalidation; revoked or expired sessions immediately disconnect.
   - Durable `OutboxEvent` table populated within the same PostgreSQL transaction as operational order events, processed by a single-process dispatcher with exponential retry backoff.
 - **Database (PostgreSQL / Prisma ORM):**
-  - Six forward-only Prisma migrations on `food_delivery_dev`.
+  - Eighteen forward-only Prisma migrations on `food_delivery_dev`.
   - Additive, highly normalized relational schema with custom composite search indexes.
   - Row-level concurrency locking (`expectedVersion`) on all mutation operations.
 
@@ -61,7 +61,7 @@ Orders progress through a strict, server-enforced state machine with cryptograph
          ▼                                                                          ▼
    [ REJECTED ]                                                            [ READY_FOR_PICKUP ]
                                                                                     │
-                                                                           (Admin Assign Rider)
+                                                                           (Automatic Rider Invitation)
                                                                                     ▼
     [ DELIVERED ] ◄──(Verify 6-Digit PIN)── [ OUT_FOR_DELIVERY ] ◄──(Pickup)── [ READY_FOR_PICKUP ] (Assigned)
           ▲
@@ -73,7 +73,7 @@ Orders progress through a strict, server-enforced state machine with cryptograph
 
 1. **Customer (`/orders/:id`):** Live 8-stage interactive Order Timeline with socket connection status indicator, copyable reference tags, itemized bill breakdowns, and the **Phase 7.1 Secure Handover Card** displaying the active 6-digit PIN with live expiry countdown, recipient advice, and re-issuance rate-limiting.
 2. **Restaurant Owner (`/inbox/:id`):** Incoming orders inbox with pending count summary, read-only order details (excluding customer PII), and kitchen action buttons (`Accept`, `Reject` with mandatory reason, `Start preparing`, `Mark ready`).
-3. **Dispatch Admin (`/admin`):** Delivery dispatch dashboard listing unassigned orders ready for pickup and available active delivery partners, enforcing a single active assignment per rider.
+3. **Rider dispatch:** eligible online riders receive automatic invitations; the first authorized acceptance wins. Admin assignment is not required.
 4. **Delivery Partner (`/delivery`):** Active delivery console displaying pickup restaurant address and customer delivery destination, with action buttons (`Confirm pickup`, `Confirm delivery (PIN)` opening a 6-digit verification dialog with brute-force lockout protection).
 
 ---
@@ -136,11 +136,11 @@ Passwords are generated locally in `backend/.env` (see `backend/.env.example`):
 All tests run against real PostgreSQL instances with zero mocking of database constraints:
 
 ```powershell
-# Backend unit tests (4 tests)
+# Backend unit tests (including F3 scheduling)
 cd backend
 npm test
 
-# Backend full E2E & operations test suite (47 tests)
+# Backend full isolated E2E suite (including F3 scheduling)
 npm run test:e2e
 
 # Database schema & catalog verification
@@ -151,7 +151,7 @@ cd ..
 dart format --output=none --set-exit-if-changed lib test integration_test test_driver
 flutter analyze
 
-# Flutter unit & widget test suite (80 tests)
+# Flutter unit & widget test suite
 flutter test
 
 # Android multi-role live operations E2E test on emulator
@@ -183,12 +183,17 @@ flutter drive `
 
 ---
 
-## Current Status & Next Steps
+## Current Status
 
-Phase 7 and Phase 7.1 are fully completed, verified, and documented:
-- Multi-role live operational pipeline from placement through kitchen preparation, dispatch assignment, pickup, and transit.
-- Cryptographic 6-digit OTP delivery handover with dual-key AES-256-GCM display sealing, HMAC-SHA256 verifier, brute-force lockout, and direct delivery bypass blockage.
-- Dedicated Flutter customer handover tracking card and rider PIN verification dialog.
-- Configurable dual-device network resolution for real physical Android devices and emulators.
+F1 Smart Food Finder, F2 group ordering/negotiation/bill splitting, F7 automatic rider invitations/secure OTP and **F3 Scheduled Delivery** are implemented. F3 is on `feature/f3-scheduled-delivery`, pending review and merge approval.
 
-**Project Boundary:** Stop before Phase 8 (AI Order Rescue). Automated delay intervention, predictive kitchen timing, and rescue rerouting are deferred to the next phase.
+At normal or group checkout, choose **Deliver Now** or **Schedule for Later**. Available slots come from PostgreSQL-backed restaurant hours, preparation/travel estimates and per-slot capacity. The selected ten-minute delivery window is a target, not a guarantee. All stored timestamps use UTC; Flutter displays IST.
+
+The kitchen receives advance notice, accepts early and begins preparation when due. Rider invitations open only at the scheduled pickup stage. A restart-safe scheduler emits preparation/delay notifications through the existing authenticated Socket.IO outbox. Actual delivery time is recorded only by successful OTP handover. Historical orders and payments are preserved.
+
+- [Current development handoff](docs/DEVELOPMENT_HANDOFF.md)
+- [F3 contracts, verification, screenshots and limitations](docs/f3/IMPLEMENTATION.md)
+
+For a rapid local demo, set `SCHEDULE_DEMO_FAST=true` only in a development server process. All timing validation, operating hours, capacity, role checks and OTP still apply. This setting is ignored in production and should normally be false.
+
+No Kids Meals, rider replacement, rebranding, packaging or unrelated features are included. Merging and pushing to either GitHub repository require approval.

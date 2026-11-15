@@ -1,3 +1,5 @@
+import '../scheduling/schedule_widgets.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -307,7 +309,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   onManageAddresses: openAddresses,
                   onAddressSaved: (saved) {
                     ref.invalidate(addressesProvider);
-                    ref.read(selectedAddressIdProvider.notifier).select(saved['id'] as String);
+                    ref
+                        .read(selectedAddressIdProvider.notifier)
+                        .select(saved['id'] as String);
                     setState(() {
                       addressId = saved['id'] as String;
                       quote = null;
@@ -729,8 +733,15 @@ class _DeliveryAddressCard extends StatelessWidget {
                 child: Text(
                   [
                     a['recipientName'],
-                    [a['addressLine1'], if ((a['addressLine2'] as String?)?.isNotEmpty == true) a['addressLine2']].join(', '),
-                    [if (a['locality']?['name'] != null) a['locality']['name'], a['postalCode']].join(' '),
+                    [
+                      a['addressLine1'],
+                      if ((a['addressLine2'] as String?)?.isNotEmpty == true)
+                        a['addressLine2'],
+                    ].join(', '),
+                    [
+                      if (a['locality']?['name'] != null) a['locality']['name'],
+                      a['postalCode'],
+                    ].join(' '),
                   ].join('\n'),
                   style: theme.textTheme.bodySmall,
                   maxLines: 4,
@@ -742,7 +753,9 @@ class _DeliveryAddressCard extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 28, top: 6),
                   child: Text(
                     'This address is outside the current delivery areas. Choose another address to order.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.error,
+                    ),
                   ),
                 ),
             ] else if (!isLoading && error == null)
@@ -760,7 +773,13 @@ class _AddressPickerSheet extends StatefulWidget {
   final ValueChanged<String> onSelect;
   final ValueChanged<Json> onSaved;
   final VoidCallback onManage;
-  const _AddressPickerSheet({required this.addresses, required this.chosenId, required this.onSelect, required this.onSaved, required this.onManage});
+  const _AddressPickerSheet({
+    required this.addresses,
+    required this.chosenId,
+    required this.onSelect,
+    required this.onSaved,
+    required this.onManage,
+  });
   @override
   State<_AddressPickerSheet> createState() => _AddressPickerSheetState();
 }
@@ -771,25 +790,53 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        16 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
       child: SingleChildScrollView(
         child: adding
-            ? QuickAddressForm(makeDefault: false, onSaved: widget.onSaved, onCancel: () => setState(() => adding = false))
+            ? QuickAddressForm(
+                makeDefault: false,
+                onSaved: widget.onSaved,
+                onCancel: () => setState(() => adding = false),
+              )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Deliver to', style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+                  Text(
+                    'Deliver to',
+                    style: theme.textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 8),
                   for (final a in widget.addresses)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(a['id'] == widget.chosenId ? Icons.radio_button_checked : Icons.radio_button_off),
+                      leading: Icon(
+                        a['id'] == widget.chosenId
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                      ),
                       title: Text('${a['label']}'),
-                      subtitle: Text('${a['addressLine1']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(
+                        '${a['addressLine1']}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       onTap: () => widget.onSelect(a['id'] as String),
                     ),
-                  TextButton.icon(onPressed: () => setState(() => adding = true), icon: const Icon(Icons.add), label: const Text('Add new address')),
-                  TextButton(onPressed: widget.onManage, child: const Text('Manage saved addresses')),
+                  TextButton.icon(
+                    onPressed: () => setState(() => adding = true),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add new address'),
+                  ),
+                  TextButton(
+                    onPressed: widget.onManage,
+                    child: const Text('Manage saved addresses'),
+                  ),
                 ],
               ),
       ),
@@ -1013,6 +1060,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  Json? schedule = {};
   final keyValue = checkoutKey();
   final scrollController = ScrollController();
   @override
@@ -1026,7 +1074,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? error;
 
   Future<void> submit() async {
-    if (busy || stale || widget.quote == null) return;
+    if (busy || stale || widget.quote == null || schedule == null) return;
     setState(() {
       busy = true;
       error = null;
@@ -1040,6 +1088,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         'quoteId': q['quoteId'],
         'idempotencyKey': keyValue,
         'paymentMethod': testPayment ? 'RAZORPAY_TEST' : 'DEMO_NO_PAYMENT',
+        ...schedule!,
       });
       if (!mounted) return;
       ref.invalidate(cartProvider);
@@ -1110,6 +1159,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         controller: scrollController,
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
         children: [
+          SchedulePicker(
+            restaurantId: q['restaurant']?['id'] as String? ?? '',
+            enabled: !busy && !stale,
+            onChanged: (value) => setState(() => schedule = value),
+          ),
           Material(
             color: scheme.surfaceContainer,
             shape: RoundedRectangleBorder(
@@ -1374,7 +1428,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(width: 12),
                 FilledButton(
                   key: const ValueKey('place-order'),
-                  onPressed: busy || stale ? null : submit,
+                  onPressed: busy || stale || schedule == null ? null : submit,
                   child: Text(busy ? 'Recording order…' : 'Confirm order'),
                 ),
               ],

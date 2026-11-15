@@ -1,3 +1,4 @@
+import {reserveSchedule,scheduleRequest,ScheduleInput} from '../scheduling/schedule.policy';
 /**
  * F2 group ordering and restaurant price negotiation.
  *
@@ -610,9 +611,9 @@ export class GroupService {
   }
 
   // ---------------------------------------------------------------- customer: checkout
-  async checkout(p: AuthenticatedPrincipal, id: string, input: { proposalId: string; expectedVersion: number; idempotencyKey: string }) {
+  async checkout(p: AuthenticatedPrincipal, id: string, input: ScheduleInput & { proposalId: string; expectedVersion: number; idempotencyKey: string }) {
     if (!['development', 'test'].includes(process.env.NODE_ENV ?? '') || process.env.DEMO_CHECKOUT_ENABLED !== 'true') throw new ForbiddenException('No approved payment method is configured');
-    const requestHash = digest({ groupId: id, proposalId: input.proposalId, paymentMethod: 'DEMO_NO_PAYMENT' });
+    const requestHash = digest({ groupId: id, proposalId: input.proposalId, paymentMethod: 'DEMO_NO_PAYMENT', ...scheduleRequest(input) });
     const out = await this.run(p, 'CUSTOMER', async (tx) => {
       await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${p.userId}::uuid FOR UPDATE`; // serializes with personal checkout
       const prior = await tx.order.findUnique({ where: { customerId_idempotencyKey: { customerId: p.userId, idempotencyKey: input.idempotencyKey } }, include: orderInclude });
@@ -632,7 +633,8 @@ export class GroupService {
       const negotiated = prop.normalTotalPaise - prop.agreedTotalPaise;
       if (negotiated < 0 || prop.agreedTotalPaise < prop.minAllowedTotalPaise) throw new ConflictException('This offer is outside the allowed range');
       const cart = await tx.cart.upsert({ where: { customerId: p.userId }, create: { customerId: p.userId }, update: {} });
-      const order = await tx.order.create({ data: {
+      const schedule = await reserveSchedule(tx,g.restaurantId,input);
+      const order = await tx.order.create({ data: {...schedule,
         orderNumber: 'FD-' + randomBytes(10).toString('hex').toUpperCase(), customerId: p.userId, restaurantId: g.restaurantId, restaurantName: g.restaurant.name,
         cartId: cart.id, cartVersion: cart.version, idempotencyKey: input.idempotencyKey, requestHash, deliveryAddressSnapshot: json(q.address), paymentMethod: 'DEMO_NO_PAYMENT', status: 'PENDING_RESTAURANT',
         itemSubtotalPaise: q.basePaise, customizationTotalPaise: q.variantPaise + q.addOnPaise, packagingPaise: q.packagingPaise, deliveryPaise: q.deliveryPaise, platformPaise: q.platformPaise,

@@ -1,3 +1,4 @@
+import {dispatchAllowed} from '../scheduling/schedule.policy';
 import { HttpException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.module';
 import { AuthenticatedPrincipal } from '../auth/auth.types';
@@ -14,6 +15,8 @@ export const OFFER_TTL_MS = 5 * 60 * 1000;
  * No distance or GPS is used. Runs inside the caller's transaction (order row locked).
  */
 export async function createOffersForOrder(tx: Prisma.TransactionClient, orderId: string, now = new Date()) {
+  const order=await tx.order.findUnique({where:{id:orderId}});
+  if(!order||order.status!=='READY_FOR_PICKUP'||!dispatchAllowed(order,now)||await tx.deliveryAssignment.findUnique({where:{orderId}}))return 0;
   const riders = await tx.user.findMany({ where: eligibleRiderWhere(now), select: { id: true } });
   for (const r of riders) await offer(tx, orderId, r.id, now);
   return riders.length;
@@ -22,12 +25,10 @@ export async function createOffersForOrder(tx: Prisma.TransactionClient, orderId
 /** Create or renew an invitation unless the rider already declined this order. */
 async function offer(tx: Prisma.TransactionClient, orderId: string, riderId: string, now: Date) {
   const expiresAt = new Date(now.getTime() + OFFER_TTL_MS);
-  const existing = await tx.deliveryOffer.findUnique({ where: { orderId_riderId: { orderId, riderId } } });
-  if (!existing) {
-    await tx.deliveryOffer.create({ data: { orderId, riderId, expiresAt, offeredAt: now } });
-  } else if (existing.status === 'CLOSED' || (existing.status === 'OFFERED' && existing.expiresAt <= now)) {
-    await tx.deliveryOffer.update({ where: { id: existing.id }, data: { status: 'OFFERED', offeredAt: now, expiresAt, respondedAt: null } });
-  }
+  // Scheduled release and rider polling can race. The database upsert prevents duplicate
+  // invitations; the conditional renewal never reopens an accepted or declined offer.
+  await tx.deliveryOffer.upsert({where:{orderId_riderId:{orderId,riderId}},create:{orderId,riderId,expiresAt,offeredAt:now},update:{}});
+  await tx.deliveryOffer.updateMany({where:{orderId,riderId,OR:[{status:'CLOSED'},{status:'OFFERED',expiresAt:{lte:now}}]},data:{status:'OFFERED',offeredAt:now,expiresAt,respondedAt:null}});
 }
 
 /** Close every other open invitation for an order once it has a rider. */
@@ -38,7 +39,7 @@ export async function closeOffersForOrder(tx: Prisma.TransactionClient, orderId:
   });
 }
 
-const openOrderWhere: Prisma.OrderWhereInput = { status: 'READY_FOR_PICKUP', assignment: { is: null } };
+const openOrderWhere = ():Prisma.OrderWhereInput => ({status:'READY_FOR_PICKUP',assignment:{is:null},OR:[{deliveryMode:'NOW'},{deliveryMode:'SCHEDULED',dispatchReleaseAt:{lte:new Date()}}]});
 
 @Injectable()
 export class DispatchService {
@@ -62,17 +63,17 @@ export class DispatchService {
       const eligible = await tx.user.findFirst({ where: { id: p.userId, ...eligibleRiderWhere(now) }, select: { id: true } });
       if (eligible) {
         // Newest first so recent orders are never starved by a backlog of stale ones.
-        const open = await tx.order.findMany({ where: openOrderWhere, select: { id: true }, orderBy: { updatedAt: 'desc' }, take: 50 });
+        const open = await tx.order.findMany({ where: openOrderWhere(), select: { id: true }, orderBy: { updatedAt: 'desc' }, take: 50 });
         for (const o of open) await offer(tx, o.id, p.userId, now);
       }
       // Busy or offline riders see no invitations (they could not accept them anyway).
       if (!eligible) return { available: false, offers: [] };
       const rows = await tx.deliveryOffer.findMany({
-        where: { riderId: p.userId, status: 'OFFERED', expiresAt: { gt: now }, order: openOrderWhere },
+        where: { riderId: p.userId, status: 'OFFERED', expiresAt: { gt: now }, order: openOrderWhere() },
         include: {
           order: {
             select: {
-              id: true, orderNumber: true, restaurantName: true, finalPayablePaise: true, version: true, createdAt: true, deliveryAddressSnapshot: true,
+              deliveryMode:true,scheduledDeliveryAt:true,deliveryWindowStart:true,deliveryWindowEnd:true,expectedPickupAt:true, id: true, orderNumber: true, restaurantName: true, finalPayablePaise: true, version: true, createdAt: true, deliveryAddressSnapshot: true,
               restaurant: { select: { name: true, address: true } },
               items: { select: { name: true, quantity: true } },
             },
@@ -84,7 +85,7 @@ export class DispatchService {
         available: true,
         offers: rows.map((r) => ({
           id: r.id,
-          orderId: r.orderId,
+          orderId: r.orderId, deliveryMode:r.order.deliveryMode,scheduledDeliveryAt:r.order.scheduledDeliveryAt,deliveryWindowStart:r.order.deliveryWindowStart,deliveryWindowEnd:r.order.deliveryWindowEnd,expectedPickupAt:r.order.expectedPickupAt,
           expiresAt: r.expiresAt.toISOString(),
           offeredAt: r.offeredAt.toISOString(),
           orderNumber: r.order.orderNumber,
@@ -116,6 +117,7 @@ export class DispatchService {
       const now = new Date();
       const inv = await tx.deliveryOffer.findUniqueOrThrow({ where: { id: offerId } });
       const order = await tx.order.findUniqueOrThrow({ where: { id: inv.orderId }, include: { assignment: true } });
+      if (!dispatchAllowed(order,now))return {error:409,message:'Scheduled dispatch is not due yet'} as const;
       if (order.assignment || order.status !== 'READY_FOR_PICKUP') {
         return { error: 409, message: order.assignment?.riderId === p.userId ? 'You already accepted this delivery' : 'Another delivery partner already accepted this order' } as const;
       }

@@ -1,3 +1,4 @@
+import '../scheduling/schedule_widgets.dart';
 import 'customer_handover_card.dart';
 import 'live_orders.dart';
 import 'payment_panel.dart';
@@ -352,6 +353,7 @@ class _OrderSummaryCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         OrderStatusBadge(order['status'] as String),
+                        ScheduleCard(order: order, compact: true),
                         PaymentTag(
                           order['paymentStatus'] as String,
                           concise: true,
@@ -572,6 +574,8 @@ class OrderDetailScreen extends ConsumerWidget {
                       onPressed: () => context.go('/orders'),
                       child: const Text('View order history'),
                     ),
+                    ScheduleCard(order: o),
+                    ScheduledCancelButton(order: o),
                     LiveOrderBar(path: 'orders/$id', orderId: id),
                   ],
                 );
@@ -581,6 +585,8 @@ class OrderDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
                 children: [
                   LiveOrderBar(path: 'orders/$id', orderId: id),
+                  ScheduleCard(order: o),
+                  ScheduledCancelButton(order: o),
                   OrderTimeline(order: o),
                   CustomerHandoverCard(
                     order: o,
@@ -704,6 +710,7 @@ class OwnerOrderDetailScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
               children: [
+                ScheduleCard(order: Json.from(matched)),
                 _OrderReferenceCard(order: Json.from(matched)),
                 const SizedBox(height: 12),
                 _OrderItemsCard(lines: (matched['items'] as List).cast<Map>()),
