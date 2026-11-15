@@ -30,6 +30,7 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
   Timer? _poll;
   final _announced = <String>{};
   bool _dialogOpen = false;
+  bool _accepting = false;
   final _responding = <String>{};
 
   @override
@@ -120,12 +121,14 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
 
   /// Show a popup for the first request this screen hasn't announced yet.
   void _announce(List<Json> offers) {
-    if (_dialogOpen || !mounted) return;
-    final fresh = offers.where((o) => !_announced.contains(o['id'])).toList();
+    // Never announce while a delivery is active or being accepted; dedupe by order (a declined
+    // request can be renewed under a new offer id).
+    if (_dialogOpen || _accepting || !mounted || ref.read(riderPresenceProvider).onDelivery) return;
+    final fresh = offers.where((o) => !_announced.contains(o['orderId'] ?? o['id'])).toList();
     if (fresh.isEmpty) return;
     // Announce one request at a time; the others stay pending and are shown after this one closes.
     final offer = fresh.first;
-    _announced.add(offer['id'] as String);
+    _announced.add((offer['orderId'] ?? offer['id']) as String);
     _dialogOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
@@ -137,7 +140,12 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
         builder: (_) => _OfferDialog(offer: offer),
       );
       _dialogOpen = false;
-      if (choice != null && mounted) await _respond(offer, choice);
+      if (choice == true) _accepting = true;
+      try {
+        if (choice != null && mounted) await _respond(offer, choice);
+      } finally {
+        _accepting = false;
+      }
       // Remaining requests are announced by the offers listener after the refresh in _respond:
       // after a decline they reappear; after an accept the rider is busy and the list is empty.
     });
