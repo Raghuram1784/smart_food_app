@@ -153,7 +153,7 @@ Never commit `.env`, keys, tokens, GPS logs or customer data.
 
 ## 10. Deployment
 
-Proposal: [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md). Ready-to-use configuration (nothing purchased or deployed): [deploy/README.md](../deploy/README.md), `render.yaml` and `backend/.env.production.example`. Decisions still needed: host and database plan, map-tile and routing keys, and the payment mode for the live demo (Razorpay test mode recommended).
+Proposal: [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md). Selected platform: **Microsoft Azure** (App Service + Azure Database for PostgreSQL + Flutter release APK); not deployed yet. `backend/.env.production.example` lists the App Service settings; `render.yaml` is kept only as an alternative. Decisions still needed: Azure tiers, map-tile and routing keys, and the payment mode for the live demo (Razorpay test mode recommended).
 
 ## 11. F3 — Scheduled Delivery
 
