@@ -1,3 +1,4 @@
+import 'features/tracking/track_order_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -139,6 +140,10 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
           placed: state.uri.queryParameters['placed'] == 'true',
         ),
       ),
+    ),
+    GoRoute(
+      path: '/orders/:id/track',
+      builder: (context, state) => CommerceGate(child: TrackOrderScreen(orderId: state.pathParameters['id']!)),
     ),
     GoRoute(
       path: '/inbox/:id',

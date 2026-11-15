@@ -1,4 +1,6 @@
 import '../scheduling/schedule_widgets.dart';
+import '../tracking/rider_location_sharing.dart';
+import '../tracking/rider_tracking_panel.dart';
 
 import 'dart:async';
 
@@ -314,9 +316,16 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
     final total = widget.orderId != null
         ? 1
         : (raw['total'] as int? ?? all.length);
+    // F4: live location only for the rider's one active delivery; stop when none is active.
+    final active = [...transit, ...assigned].firstOrNull;
+    final sharing = ref.read(riderLocationSharingProvider);
+    if (active == null && sharing.active && widget.orderId == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(riderLocationSharingProvider.notifier).stop(ended: true));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (active != null) RiderTrackingPanel(orderId: active['id'] as String),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
