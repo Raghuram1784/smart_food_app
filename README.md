@@ -41,7 +41,7 @@ Built by **Team NeuroX · KL University** for the **Accurate Background AI Hacka
 4. The app connects to the hosted API on Render. The free server sleeps when idle, so the **first screen can take up to a minute** to load.
 5. Payments run in **Razorpay Test Mode**: no real money moves. Use Razorpay's published test card or test UPI on the payment screen.
 
-**Demonstration video:** [Team-NeuroX_KL_University.mp4](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) (public mirror: [MP4](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4)) (9:59, MP4 with voice-over) shows every feature end to end.
+**Demonstration video:** [Team-NeuroX_KL_University.mp4](https://github.com/Accurate-Hackathon/KL-NeuroX/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4) (public mirror: [MP4](https://github.com/Raghuram1784/smart_food_app/releases/download/v1.1.0/Team-NeuroX_KL_University.mp4)) shows every feature end to end.
 
 **Suggested 5-minute tour**
 - **Customer:** set the delivery address to Gachibowli → try **Kids Meals** and the **AI Smart Food Finder** → order and pay in test mode → follow live tracking.
