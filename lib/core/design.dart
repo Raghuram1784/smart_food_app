@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract final class Brand {
-  static const name = 'Food Delivery Demo';
+  static const name = 'SAMORI';
 }
 
 abstract final class Space {

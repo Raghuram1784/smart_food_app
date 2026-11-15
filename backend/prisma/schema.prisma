@@ -162,6 +162,8 @@ model MenuItem {
   availabilityUpdatedAt DateTime           @default(now()) @db.Timestamptz(3)
   version               Int                @default(1)
   displayOrder          Int                @default(0)
+  /// Owner-curated: suitable for children (smaller portion, mild). Set only by the restaurant owner.
+  isKidsMeal            Boolean            @default(false)
   createdAt             DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime           @updatedAt @db.Timestamptz(3)
   restaurant            Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
@@ -175,6 +177,7 @@ model MenuItem {
   @@index([restaurantId, availabilityStatus, displayOrder, id])
   @@index([categoryId, availabilityStatus, basePricePaise])
   @@index([sectionId, restaurantId])
+  @@index([isKidsMeal, availabilityStatus])
   groupCartItems        GroupCartItem[]
 }
 
@@ -288,6 +291,8 @@ enum MembershipStatus {
 
 model User {
   riderAssignments    DeliveryAssignment[]   @relation("AssignedRider")
+  riderPayouts        RiderPayout[]          @relation("PayoutRider")
+  recordedPayouts     RiderPayout[]          @relation("PayoutRecorder")
   dispatchAssignments DeliveryAssignment[]   @relation("Dispatcher")
   paymentAttempts     PaymentAttempt[]
   cart                Cart?
@@ -961,4 +966,20 @@ model DeliveryTracking {
   order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([riderId])
+}
+
+/// Manual rider payout settlement recorded by an admin (no bank transfer is made by the platform).
+model RiderPayout {
+  id             String   @id @default(uuid()) @db.Uuid
+  riderId        String   @db.Uuid
+  amountPaise    Int
+  note           String?  @db.VarChar(200)
+  reference      String?  @db.VarChar(80)
+  idempotencyKey String   @unique @db.Uuid
+  recordedById   String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  rider          User     @relation("PayoutRider", fields: [riderId], references: [id], onDelete: Restrict)
+  recordedBy     User     @relation("PayoutRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([riderId, createdAt])
 }

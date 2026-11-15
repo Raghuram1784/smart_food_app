@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🍃 SAMORI
+<img src="docs/brand/samori-icon.png" alt="SAMORI app icon" width="120">
+
+# SAMORI
 
 ### *Every choice, made with care.*
 
@@ -60,6 +62,20 @@ SAMORI is one Flutter app with four roles: **Customer**, **Restaurant Owner**, *
 | F4 | Real-time rider GPS tracking and dynamic ETA | ✅ Merged |
 | F7 | Automatic rider invitations (first accept wins) and secure OTP handover | ✅ Merged |
 | — | Four-role authentication (opaque sessions, RBAC) | ✅ Merged |
+| v1.1 | Razorpay TEST checkout on the hosted build (personal and group orders) | ✅ Merged, verified on Render |
+| v1.1 | Admin dashboard: people, orders, revenue, platform earnings, restaurant performance, transactions, Today/Week/Month/All filters | ✅ Merged |
+| v1.1 | Delivery partner Earnings: today/week/month, gross, 10% platform commission, net payable, payouts, per-delivery history | ✅ Merged |
+| v1.1 | Manual rider payout settlements recorded by the admin (no bank transfer) | ✅ Merged |
+| v1.1 | Kids Meals: home button, Kids Meals page, owner-curated dishes, normal cart and Razorpay checkout | ✅ Merged |
+| v1.1 | Official SAMORI launcher icon (adaptive, themed) and app name; light-mode readability fix for header sheets | ✅ Merged |
+
+**How the v1.1 numbers are calculated (real database records only):**
+- *Order revenue* = total payable of orders that are not cancelled, rejected or still awaiting payment.
+- *Rider gross earnings* = the delivery fee of each **completed** (OTP-verified) delivery; one assignment per order, so nothing is counted twice.
+- *Platform commission* = `RIDER_COMMISSION_BPS` of rider gross earnings (default 1000 = 10%). Example: ₹1,000 gross → ₹100 commission → ₹900 net.
+- *Platform earnings* = platform fees on orders + rider commission.
+- *Pending payout* = net rider earnings − payouts recorded by the admin. A payout can never exceed the pending balance and is idempotent.
+- *Kids Meals* are dishes the restaurant owner marks as suitable for children. No nutrition or allergen data is invented; estimates show only where they already exist.
 
 ---
 
@@ -309,8 +325,8 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5000/api/v1/
 
 | Suite | Result |
 |---|---|
-| Backend unit | **27 / 27** |
-| Backend end-to-end (real PostgreSQL, isolated test DB) | **126 / 126** |
+| Backend unit | **29 / 29** |
+| Backend end-to-end (real PostgreSQL, isolated test DB) | **127 / 127** |
 | Flutter widget & unit tests | **162 / 162** |
 | Flutter analyze | **clean** |
 
@@ -343,13 +359,13 @@ Device evidence: [`docs/f3/`](docs/f3/IMPLEMENTATION.md) and [`docs/f4/device-re
 | Item | Status |
 |---|---|
 | API web service (`https://samori-api.onrender.com/api/v1/`) | ✅ Live. Health check reports API and database up |
-| Render PostgreSQL | ✅ All 19 migrations applied |
+| Render PostgreSQL | ✅ Migrations applied automatically on deploy (20 with v1.1) |
 | Catalog | ✅ Seeded: 38 outlets, 737 menu items, 10 localities |
 | Four roles | ✅ Non-demo accounts for customer, owner, rider and admin sign in |
 | Address, cart and price quote over the live API | ✅ Verified |
-| Hosted checkout | ⏳ Pending. Production refuses demo checkout by design; Razorpay test keys and delivery-PIN keys still need to be set on the host |
+| Hosted checkout | ✅ Razorpay TEST payment completed from the Samsung on the hosted API (order marked PAID). Demo checkout stays refused in production |
 | Two-phone moving-GPS test on the hosted API | ⏳ Pending |
-| Release APK pointing at the hosted API | ⏳ Built; device testing and distribution pending |
+| Release APK pointing at the hosted API | ✅ Samori-v1.1 (signed, hosted API); v1.0.1 installed and used on the Samsung |
 
 The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
 Configuration lives in [`render.yaml`](render.yaml) and the [production settings template](backend/.env.production.example); secrets are set only in the Render dashboard. An [Azure deployment plan](docs/DEPLOYMENT_PLAN.md) is kept as a documented alternative.
@@ -358,7 +374,6 @@ Configuration lives in [`render.yaml`](render.yaml) and the [production settings
 
 ## Future scope (not implemented)
 
-- 🧒 Kids Meals
 - 🔁 Automatic rider replacement
 - ✏️ Smart order modification after checkout
 - 💳 Real split payments between group members (today's shares are informational)

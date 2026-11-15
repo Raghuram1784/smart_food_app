@@ -24,6 +24,7 @@ import 'features/restaurant/restaurant_screen.dart';
 import 'features/finder/finder_screen.dart';
 import 'features/group/group_screens.dart';
 import 'features/group/owner_group_proposals_screen.dart';
+import 'features/insights/insights_screens.dart';
 
 GoRouter createRouter([WidgetRef? ref]) => GoRouter(
   initialLocation: '/',
@@ -35,7 +36,7 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
     if (state.uri.path == '/') {
       if (workspace == RoleWorkspace.restaurantOwner) return '/owner';
       if (workspace == RoleWorkspace.deliveryPartner) return '/deliveries';
-      if (workspace == RoleWorkspace.admin) return '/dispatch';
+      if (workspace == RoleWorkspace.admin) return '/admin';
     }
     // Profile redirects to account for consistent role-based account view
     if (state.uri.path == '/profile') {
@@ -91,6 +92,14 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
           ),
         ),
         GoRoute(
+          path: '/admin',
+          builder: (context, state) => const CommerceGate(role: 'ADMIN', child: AdminDashboardScreen()),
+        ),
+        GoRoute(
+          path: '/earnings',
+          builder: (context, state) => const CommerceGate(role: 'DELIVERY_PARTNER', child: RiderEarningsScreen()),
+        ),
+        GoRoute(
           path: '/dispatch',
           builder: (context, state) => CommerceGate(
             role: 'ADMIN',
@@ -103,6 +112,14 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
       ],
     ),
     // Full screen routes pushed over shell:
+    GoRoute(path: '/kids-meals', builder: (context, state) => const KidsMealsScreen()),
+    GoRoute(
+      path: '/owner/kids-meals',
+      builder: (context, state) => CommerceGate(
+        role: 'RESTAURANT_OWNER',
+        child: OwnerKidsMealsScreen(restaurantId: state.uri.queryParameters['restaurantId'] ?? '', restaurantName: state.uri.queryParameters['name']),
+      ),
+    ),
     GoRoute(path: '/groups', builder: (context, state) => const CommerceGate(child: GroupHubScreen())),
     GoRoute(
       path: '/groups/:id',

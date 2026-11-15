@@ -98,6 +98,11 @@ class RoleShell extends ConsumerWidget {
             label: 'History',
           ),
           NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+            label: 'Earnings',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Account',
@@ -106,6 +111,11 @@ class RoleShell extends ConsumerWidget {
 
       case RoleWorkspace.admin:
         return const [
+          NavigationDestination(
+            icon: Icon(Icons.space_dashboard_outlined),
+            selectedIcon: Icon(Icons.space_dashboard_rounded),
+            label: 'Overview',
+          ),
           NavigationDestination(
             icon: Icon(Icons.alt_route_outlined),
             selectedIcon: Icon(Icons.alt_route_rounded),
@@ -169,16 +179,18 @@ class RoleShell extends ConsumerWidget {
         return 0;
 
       case RoleWorkspace.deliveryPartner:
-        if (path == '/account' || path == '/profile') return 3;
+        if (path == '/account' || path == '/profile') return 4;
+        if (path == '/earnings') return 3;
         if (tab == 'history') return 2;
         if (tab == 'active') return 1;
         return 0;
 
       case RoleWorkspace.admin:
-        if (path == '/account' || path == '/profile') return 3;
-        if (tab == 'riders') return 2;
-        if (tab == 'unassigned') return 1;
-        return 0;
+        if (path == '/account' || path == '/profile') return 4;
+        if (path == '/admin') return 0;
+        if (tab == 'riders') return 3;
+        if (tab == 'unassigned') return 2;
+        return 1;
 
       case RoleWorkspace.customer:
         if (path == '/account' || path == '/profile') return 4;
@@ -223,6 +235,9 @@ class RoleShell extends ConsumerWidget {
             context.go('/deliveries?tab=history');
             break;
           case 3:
+            context.go('/earnings');
+            break;
+          case 4:
             context.go('/account');
             break;
         }
@@ -231,15 +246,18 @@ class RoleShell extends ConsumerWidget {
       case RoleWorkspace.admin:
         switch (index) {
           case 0:
-            context.go('/dispatch?tab=all');
+            context.go('/admin');
             break;
           case 1:
-            context.go('/dispatch?tab=unassigned');
+            context.go('/dispatch?tab=all');
             break;
           case 2:
-            context.go('/dispatch?tab=riders');
+            context.go('/dispatch?tab=unassigned');
             break;
           case 3:
+            context.go('/dispatch?tab=riders');
+            break;
+          case 4:
             context.go('/account');
             break;
         }
