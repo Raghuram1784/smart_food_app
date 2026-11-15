@@ -20,6 +20,7 @@ import 'features/navigation/workspace_provider.dart';
 import 'features/operations/owner_dashboard_screen.dart';
 import 'features/operations/rider_dashboard_screen.dart';
 import 'features/restaurant/restaurant_screen.dart';
+import 'features/finder/finder_screen.dart';
 
 GoRouter createRouter([WidgetRef? ref]) => GoRouter(
   initialLocation: '/',
@@ -99,6 +100,10 @@ GoRouter createRouter([WidgetRef? ref]) => GoRouter(
       ],
     ),
     // Full screen routes pushed over shell:
+    GoRoute(
+      path: '/finder',
+      builder: (context, state) => CommerceGate(child: FinderScreen(initialPrompt: state.uri.queryParameters['q'])),
+    ),
     GoRoute(
       path: '/addresses',
       builder: (context, state) => const CommerceGate(child: AddressScreen()),

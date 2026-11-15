@@ -70,6 +70,9 @@ model Restaurant {
   isDemo                      Boolean                  @default(true)
   displayOrder                Int                      @default(0)
   localityId                  String?                  @db.VarChar(64)
+  /// Brand this outlet belongs to (several outlets can share one brand).
+  brandId                     String?                  @db.VarChar(64)
+  brand                       RestaurantBrand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
   createdAt                   DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt                   DateTime                 @updatedAt @db.Timestamptz(3)
   locality                    Locality?                @relation(fields: [localityId], references: [id], onDelete: SetNull)
@@ -82,6 +85,7 @@ model Restaurant {
 
   @@index([operatingStatus, displayOrder, id])
   @@index([localityId, operatingStatus, displayOrder, id])
+  @@index([brandId])
 }
 
 model Category {
@@ -156,6 +160,7 @@ model MenuItem {
   variants              MenuItemVariant[]
   addOns                MenuItemAddOn[]
   nutrition             MenuItemNutrition?
+  profile               MenuItemProfile?
 
   @@index([restaurantId, availabilityStatus, displayOrder, id])
   @@index([categoryId, availabilityStatus, basePricePaise])
@@ -728,4 +733,32 @@ model MenuItemNutrition {
   createdAt          DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
   menuItem           MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+}
+
+/// Smart Food Finder matching attributes (curated for F1 dishes, rule-derived for earlier items).
+model MenuItemProfile {
+  menuItemId     String   @id @db.VarChar(64)
+  cuisine        String   @db.VarChar(60)
+  foodFamily     String   @db.VarChar(60)
+  dishGroup      String   @db.VarChar(40)
+  mainIngredient String   @db.VarChar(40)
+  tasteTags      String[] @default([]) @db.VarChar(20)
+  spiceLevel     Int      @default(0) @db.SmallInt
+  synonyms       String[] @default([]) @db.VarChar(60)
+  tagSource      String   @db.VarChar(20)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  menuItem       MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([foodFamily])
+  @@index([dishGroup])
+}
+
+/// A restaurant brand. Each outlet (Restaurant row) keeps its own locality, menu, zones, owners and orders.
+model RestaurantBrand {
+  id        String       @id @db.VarChar(64)
+  name      String       @db.VarChar(160)
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+  outlets   Restaurant[]
 }

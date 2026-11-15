@@ -106,6 +106,9 @@ class Dish {
   final int price;
   final int? _apiPricePaise;
   final String availabilityStatus, restaurantName;
+
+  /// Backend category id (e.g. 'biryani', 'beverages'); empty for offline fixtures.
+  final String categoryId;
   final String? availabilityReason;
   final bool? isVegetarian;
   final List<String> variants, addOns;
@@ -162,6 +165,7 @@ class Dish {
     int? pricePaise,
     this.availabilityStatus = 'AVAILABLE',
     this.restaurantName = '',
+    this.categoryId = '',
     this.availabilityReason,
     this.isVegetarian,
     this.nutrition,
@@ -182,6 +186,7 @@ class Dish {
     pricePaise: j['basePricePaise'] as int,
     availabilityStatus: j['availabilityStatus'] as String,
     restaurantName: j['restaurant']['name'] as String,
+    categoryId: (j['categoryId'] as String?) ?? (j['category'] is Map ? (j['category']['id'] as String? ?? '') : ''),
     availabilityReason: j['availabilityReason'] as String?,
     isVegetarian: j['isVegetarian'] as bool?,
     nutrition: Nutrition.fromJson(j['nutrition']),

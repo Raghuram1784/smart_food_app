@@ -91,9 +91,9 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('A little hungry?'), findsOneWidget);
+        expect(find.byKey(const ValueKey('home-search')), findsOneWidget);
         expect(tester.takeException(), isNull);
-        // Redesigned Home: open a kitchen from the "Browse restaurants" row.
+        // Redesigned Home: open a kitchen from the "Restaurants in your area" row.
         await tester.scrollUntilVisible(
           find.byKey(const ValueKey('home-restaurants')),
           300,

@@ -351,17 +351,36 @@ class AddToCartButton extends ConsumerStatefulWidget {
 
   /// Dish name for the confirmation toast.
   final String? itemName;
+
+  /// Optional check run after sign-in and before the cart is touched (e.g. an
+  /// over-budget or price-change confirmation). Returning false cancels.
+  final Future<bool> Function()? beforeAdd;
+
+  /// Inline button for cards (no top spacing, not stretched).
+  final bool compact;
+
+  /// Start the add flow once when first shown ("add the first option" in the finder).
+  final bool autoStart;
   const AddToCartButton({
     super.key,
     required this.selection,
     this.enabled = true,
     this.itemName,
+    this.beforeAdd,
+    this.compact = false,
+    this.autoStart = false,
   });
   @override
   ConsumerState<AddToCartButton> createState() => _AddToCartButtonState();
 }
 
 class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoStart) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) add(); });
+  }
+
   bool busy = false;
   String? error;
   Future<void> add() async {
@@ -385,6 +404,8 @@ class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
         setState(() => error = 'Sign in with a customer account to add meals.');
         return;
       }
+      if (widget.beforeAdd != null && !await widget.beforeAdd!()) return;
+      if (!mounted) return;
       final repo = ref.read(commerceRepositoryProvider);
       final cart = Json.from(await repo.request('GET', 'cart'));
       var replace = false;
@@ -424,10 +445,12 @@ class _AddToCartButtonState extends ConsumerState<AddToCartButton> {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxisAlignment: widget.compact ? CrossAxisAlignment.end : CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
     children: [
-      const SizedBox(height: 16),
+      if (!widget.compact) const SizedBox(height: 16),
       FilledButton.icon(
+        style: widget.compact ? FilledButton.styleFrom(minimumSize: const Size(48, 44), padding: const EdgeInsets.symmetric(horizontal: 16)) : null,
         key: const ValueKey('add-to-cart'),
         onPressed: busy || !widget.enabled ? null : add,
         icon: const Icon(Icons.shopping_bag_outlined),

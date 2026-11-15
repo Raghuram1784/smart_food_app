@@ -167,7 +167,7 @@ class RestaurantCard extends StatelessWidget {
                         Text(
                           from == null
                               ? 'Menu coming soon'
-                              : 'From ₹${formatPaise(from)} · sample',
+                              : 'Menu from ₹${formatPaise(from)}',
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: theme.colorScheme.primary,
                           ),
@@ -207,7 +207,10 @@ class DishTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(dish.name, style: theme.textTheme.titleMedium),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        if (dish.isVegetarian != null) Padding(padding: const EdgeInsets.only(top: 3, right: 6), child: VegMark(veg: dish.isVegetarian!)),
+                        Expanded(child: Text(dish.name, style: theme.textTheme.titleMedium)),
+                      ]),
                       const SizedBox(height: 5),
                       Text(
                         dish.description,
@@ -217,11 +220,13 @@ class DishTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '₹${dish.displayPrice} · sample',
+                        '₹${dish.displayPrice} menu price',
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: theme.colorScheme.primary,
                         ),
                       ),
+                      const SizedBox(height: 6),
+                      NutritionLine(dish.nutrition),
                     ],
                   ),
                 ),
@@ -389,7 +394,7 @@ Widget _dishContents(BuildContext context, Dish dish) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: Text(
-                    '₹${dish.displayPrice} · sample menu price before fees',
+                    '₹${dish.displayPrice} menu price · delivery and fees added at checkout',
                     style: theme.textTheme.titleMedium,
                   ),
                 );
@@ -515,6 +520,65 @@ class _Macro extends StatelessWidget {
       children: [
         Text(value, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
         Text(label, style: theme.textTheme.labelSmall),
+      ],
+    );
+  }
+}
+
+/// Compact "520 kcal | 28 g protein" chips for dish cards and lists, with a small
+/// info action for provenance. Missing data says so; it is never shown as 0.
+class NutritionLine extends StatelessWidget {
+  final Nutrition? nutrition;
+  final bool dense;
+  const NutritionLine(this.nutrition, {super.key, this.dense = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final n = nutrition;
+    final style = theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700);
+    Widget chip(IconData icon, String text, Color fg, Color bg) => DecoratedBox(
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: dense ? 6 : 8, vertical: 2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: dense ? 11 : 13, color: fg),
+              const SizedBox(width: 3),
+              Flexible(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg))),
+            ]),
+          ),
+        );
+    if (n == null) {
+      return Text('Calories & protein unavailable',
+          key: const ValueKey('nutrition-unavailable'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant));
+    }
+    final coral = dark ? const Color(0xFFF38A6C) : const Color(0xFFC2512F);
+    final green = dark ? const Color(0xFF8FD3AE) : const Color(0xFF1E6B47);
+    return Wrap(
+      key: const ValueKey('nutrition-line'),
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        chip(Icons.local_fire_department_outlined, '${n.caloriesKcal} kcal', coral, coral.withValues(alpha: .12)),
+        chip(Icons.fitness_center_outlined, '${NutritionPanel._g(n.proteinG)} g protein', green, green.withValues(alpha: .12)),
+        if (!dense)
+          InkResponse(
+            radius: 16,
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('About these values'),
+                content: Text('${n.isEstimate ? 'Estimated' : 'Measured'} per ${n.servingDescription}${n.servingGrams != null ? ' (~${n.servingGrams} g)' : ''}. ${n.source}'),
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+              ),
+            ),
+            child: Padding(padding: const EdgeInsets.all(2), child: Icon(Icons.info_outline, size: 14, color: theme.colorScheme.onSurfaceVariant)),
+          ),
       ],
     );
   }

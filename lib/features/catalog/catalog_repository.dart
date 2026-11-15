@@ -5,6 +5,7 @@ import '../../core/providers.dart';
 import 'catalog.dart' as local;
 import 'catalog.dart' show Dish, Restaurant;
 import 'diet_preference.dart';
+import '../location/delivery_destination.dart';
 
 class FoodCategory {
   final String id, name, image;
@@ -85,15 +86,22 @@ class ApiCatalogRepository implements CatalogRepository {
           .toList();
   @override
   Future<HomeCatalog> home(String? area, CancelToken token, {String? diet}) async {
+    // Area-scoped Home: restaurants that deliver there, and up to 150 of their dishes.
     final results = await Future.wait<dynamic>([
       _get('restaurants', token, {'limit': 50, 'area': ?area, 'diet': ?diet}),
-      _get('catalog/search', token, {'limit': 50, 'area': ?area, 'diet': ?diet}),
       categories(token),
+      for (final page in [1, 2, 3]) _get('catalog/search', token, {'limit': 50, 'page': page, 'area': ?area, 'diet': ?diet}),
     ]);
+    final seen = <String>{};
+    final dishes = [
+      for (final r in results.skip(2))
+        for (final j in r['items'] as List)
+          if (seen.add(j['id'] as String)) Dish.fromJson(j),
+    ];
     return HomeCatalog(
       (results[0]['items'] as List).map((j) => Restaurant.fromJson(j)).toList(),
-      (results[1]['items'] as List).map((j) => Dish.fromJson(j)).toList(),
-      results[2] as List<FoodCategory>,
+      dishes,
+      results[1] as List<FoodCategory>,
     );
   }
 
@@ -238,7 +246,7 @@ final areasProvider = FutureProvider.autoDispose(
 // is shown per restaurant (serviceabilityProvider) rather than hiding kitchens.
 final homeCatalogProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(catalogRepositoryProvider).home(
-    null,
+    ref.watch(deliveryServiceAreaProvider)?.id,
     _token(ref),
     diet: ref.watch(dietPreferenceProvider).api,
   ),
