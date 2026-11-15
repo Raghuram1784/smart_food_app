@@ -185,15 +185,25 @@ flutter drive `
 
 ## Current Status
 
-F1 Smart Food Finder, F2 group ordering/negotiation/bill splitting, F7 automatic rider invitations/secure OTP and **F3 Scheduled Delivery** are implemented. F3 is on `feature/f3-scheduled-delivery`, pending review and merge approval.
+Implemented and merged into `main` in both repositories:
 
-At normal or group checkout, choose **Deliver Now** or **Schedule for Later**. Available slots come from PostgreSQL-backed restaurant hours, preparation/travel estimates and per-slot capacity. The selected ten-minute delivery window is a target, not a guarantee. All stored timestamps use UTC; Flutter displays IST.
+| Feature | Status |
+|---|---|
+| F1 Smart Food Finder (budget engine, Gemini intent, nutrition) | Merged |
+| F2 Group ordering, restaurant price negotiation, bill splitting, Order for Friends | Merged |
+| F7 Automatic rider invitations and secure OTP handover | Merged |
+| F3 Scheduled delivery (ten-minute target window, time-gated kitchen and dispatch) | Merged |
+| F4 Live rider tracking and smart ETA | Merged |
 
-The kitchen receives advance notice, accepts early and begins preparation when due. Rider invitations open only at the scheduled pickup stage. A restart-safe scheduler emits preparation/delay notifications through the existing authenticated Socket.IO outbox. Actual delivery time is recorded only by successful OTP handover. Historical orders and payments are preserved.
+**F3 Scheduled delivery.** At normal or group checkout, choose **Deliver Now** or **Schedule for Later**. Slots come from PostgreSQL restaurant hours, preparation/travel estimates and per-slot capacity; the ten-minute window is a target, not a guarantee. Kitchens are notified immediately but cannot start preparing before the plan; rider invitations open at the dispatch time. Stored times are UTC and shown in IST. `SCHEDULE_DEMO_FAST=true` shortens timings for local demos only (ignored outside development).
 
-- [Current development handoff](docs/DEVELOPMENT_HANDOFF.md)
-- [F3 contracts, verification, screenshots and limitations](docs/f3/IMPLEMENTATION.md)
+**F4 Live tracking and smart ETA.** Go Online and invitations stay GPS-free. After accepting a delivery, the rider shares real phone GPS through an Android foreground service with a visible notification; sharing stops after OTP delivery, cancellation or sign-out. Customers open **Track Order** to see the bike marker, their delivery pin, the restaurant (once its owner confirms the pickup point), an ETA labelled **Road route** (OSRM-compatible routing) or **Estimate**, the scheduled window status and honest freshness (LIVE only for fixes under 30 seconds). Only the latest fix is stored and it is deleted when the order ends.
 
-For a rapid local demo, set `SCHEDULE_DEMO_FAST=true` only in a development server process. All timing validation, operating hours, capacity, role checks and OTP still apply. This setting is ignored in production and should normally be false.
+**Verification.** Backend unit 27/27 and e2e 126/126 on the isolated test database, Flutter analyze clean and 162/162 tests. On a Samsung S23 Ultra: the scheduled flow delivered within its window; real phone GPS reached the server (about 11 m accuracy), kept flowing with the screen off, showed LIVE on the customer map, and stopped after OTP delivery. **Simultaneous two-phone GPS movement testing (rider and customer on separate phones) will be completed after deployment.**
 
-No Kids Meals, rider replacement, rebranding, packaging or unrelated features are included. Merging and pushing to either GitHub repository require approval.
+- [Development handoff](docs/DEVELOPMENT_HANDOFF.md)
+- [F3 implementation and device evidence](docs/f3/IMPLEMENTATION.md)
+- [F4 implementation](docs/f4/IMPLEMENTATION.md)
+- [Deployment plan](docs/DEPLOYMENT_PLAN.md) and [deployment configuration](deploy/README.md)
+
+Not included yet: Kids Meals, rider replacement, rebranding, eco packaging and other unrelated features.

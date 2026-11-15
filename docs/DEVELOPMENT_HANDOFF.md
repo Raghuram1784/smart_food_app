@@ -136,29 +136,24 @@ Never commit `.env`, keys, tokens, GPS logs or customer data.
 
 - **Company repository (primary):**
   - `Accurate-Hackathon/KL-NeuroX` is private, with default branch `main`.
-  - One feature branch per phase (`feature/f2-group-ordering`, and next `feature/f3-scheduled-delivery`), created from the latest company `main`.
+  - One feature branch per phase (`feature/f2-group-ordering`, `feature/f3-scheduled-delivery`, `feature/f4-live-tracking-eta`), created from the latest `main`. Feature branches are kept after merging.
   - Every change goes through a pull request that is reviewed before merging. No force-pushes, no direct commits to `main`, and no branch deletion without agreement.
   - Branch protection isn't available on the current GitHub plan, so the review discipline is manual.
-- **Personal repository:** `Raghuram1784/smart_food_app` is **public**. Company work is mirrored there only once the company approves public publication.
+- **Personal repository:** `Raghuram1784/smart_food_app` (public) receives the same reviewed feature PRs. Each repository gets its own merge commit, so the two `main` branches have identical files under different commit hashes.
 
 ## 9. Known limitations
 
 - **Payments:** demo no-payment checkout and existing Razorpay TEST mode; group checkout remains demo-only. Members' shares are informational. Scheduled cancellation flags captured payments for review, never claims a refund.
 - **Group size and lifetime:** a group can be ordered from one restaurant at a time, with up to 12 members and expiry measured in minutes.
 - **Negotiation:** proposals are manual; there is no automatic pricing engine on the restaurant side.
-- **Location:** no rider GPS. Customer location is optional. F3 uses configured kitchen and restaurant travel estimates with a target window.
+- **Location:** rider GPS is shared only during an accepted active delivery (F4); dispatch never needs GPS. None of the 38 outlets has a confirmed pickup point yet, so owners must set one before the restaurant marker appears. Road routing uses the public OSRM demo in development only; without routing the ETA is a labelled estimate. Map tiles default to OpenStreetMap (development only).
+- **Two-phone testing:** simultaneous rider/customer GPS movement on two physical phones will be completed after deployment; device verification so far used one Samsung sequentially.
 - **Notifications:** push notifications aren't configured; in-app Socket.IO only. No SMS.
 - **Branch protection:** unavailable on the current company GitHub plan.
 
-## 10. Pending deployment
+## 10. Deployment
 
-- **Environment:** the backend runs locally (Node + PostgreSQL). A hosted environment still needs:
-  - a managed Postgres, with `prisma migrate deploy` applied
-  - secrets in the host's secret store
-  - `CORS_ORIGINS` and `APP_LINK_BASE` set for the public domain
-  - TLS for Socket.IO
-- **Android:** a release build with real signing, and App Links verification for `/group/:token`.
-- **Before go-live:** disable or limit the `DEMO_*` flags.
+Proposal: [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md). Ready-to-use configuration (nothing purchased or deployed): [deploy/README.md](../deploy/README.md), `render.yaml` and `backend/.env.production.example`. Decisions still needed: host and database plan, map-tile and routing keys, and the payment mode for the live demo (Razorpay test mode recommended).
 
 ## 11. F3 — Scheduled Delivery
 
@@ -174,4 +169,13 @@ Flutter reuses the green/cream/gold theme: Deliver Now / Schedule for Later, dat
 
 New commands: `cd backend; npx tsx --test test/scheduling.unit.test.ts test/scheduling.e2e.test.ts`; `flutter test test/scheduling_test.dart`. Full suite commands in section 6 include F3 automatically. Device reproduction, final results and limitations are in [docs/f3/IMPLEMENTATION.md](f3/IMPLEMENTATION.md).
 
-No merge or push is authorized yet. Review the local feature commit first; synchronize both repositories through normal PRs only after user approval.
+F3 is merged into `main` in both repositories.
+
+
+## 12. F4 — Live Rider Tracking and Smart ETA
+
+Module `backend/src/modules/tracking/` (migration `202611240001_live_tracking`, 19 migrations total): `POST /tracking/orders/:id/location` (assigned rider, active delivery only; invalid, future, stale, out-of-order and too-frequent fixes rejected), `GET /tracking/orders/:id` (customer, assigned rider, outlet owner, admin), `PUT /tracking/orders/:id/destination` (customer pin) and `PUT /tracking/restaurants/:id/pickup-location` (owner). `DeliveryTracking` keeps only the latest fix per order and is deleted once the order is terminal. Socket event `delivery.location` goes only to the order's customer, rider and dispatch rooms.
+
+Smart ETA (`eta.ts`, `routing.ts`) combines kitchen state, the rider's latest real fix, road routing (`ROUTING_PROVIDER=none|osrm`, `ROUTING_BASE_URL`) and the scheduled window; routing is requested at most every 45 s per order and failures retry after 15 s without overwriting a road route. Without routing the ETA is labelled Estimate and straight-line distance is never shown as road distance.
+
+Flutter: `lib/features/tracking/` (rider sharing with foreground service, rider panel, Track Order screen, owner pickup point). Tests: `cd backend; npx tsx --test test/tracking.unit.test.ts test/tracking.e2e.test.ts`; `flutter test test/tracking_test.dart`. Details: [docs/f4/IMPLEMENTATION.md](f4/IMPLEMENTATION.md). F4 is merged into `main` in both repositories.
