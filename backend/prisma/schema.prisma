@@ -488,6 +488,7 @@ model Order {
   rejectionReason         String?             @db.VarChar(300)
   refundReviewRequired    Boolean             @default(false)
   assignment              DeliveryAssignment?
+  tracking                DeliveryTracking?
   paymentAttempts         PaymentAttempt[]
   id                      String              @id @default(uuid()) @db.Uuid
   orderNumber             String              @unique @db.VarChar(32)
@@ -933,4 +934,31 @@ model GroupProposal {
 
   @@index([restaurantId, status, createdAt])
   @@index([groupId, createdAt])
+}
+
+/// F4: latest rider fix for an active delivery (no history), the customer's drop pin for this order and the last ETA.
+model DeliveryTracking {
+  orderId           String    @id @db.Uuid
+  riderId           String?   @db.Uuid
+  latitude          Decimal?  @db.Decimal(9, 6)
+  longitude         Decimal?  @db.Decimal(9, 6)
+  accuracyMeters    Float?
+  headingDegrees    Float?
+  speedMps          Float?
+  recordedAt        DateTime? @db.Timestamptz(3)
+  receivedAt        DateTime? @db.Timestamptz(3)
+  destLatitude      Decimal?  @db.Decimal(9, 6)
+  destLongitude     Decimal?  @db.Decimal(9, 6)
+  destConfirmedAt   DateTime? @db.Timestamptz(3)
+  etaSeconds        Int?
+  etaDistanceMeters Int?
+  etaSource         String?   @db.VarChar(16)
+  etaPhase          String?   @db.VarChar(24)
+  routeGeometry     Json?
+  etaComputedAt     DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([riderId])
 }
