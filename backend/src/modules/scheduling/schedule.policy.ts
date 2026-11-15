@@ -14,7 +14,8 @@ export function schedulePlan(r:any,at:Date,now=new Date()){
  if(!Number.isFinite(t)||local.getUTCSeconds()||local.getUTCMilliseconds()||minute%cfg.step||start.getTime()<now.getTime()+cfg.lead*MINUTE||t>now.getTime()+cfg.horizonDays*86400000)throw new ConflictException('Choose a future available delivery slot');
  const day=(d:Date)=>d.toISOString().slice(0,10);
  if(r.operatingStatus!=='OPEN'||!r.deliveryAvailability||!r.scheduleWeekdays.includes(local.getUTCDay())||day(startLocal)!==day(local)||day(pickupLocal)!==day(local)||startLocal.getUTCHours()*60+startLocal.getUTCMinutes()<r.scheduleOpenMinute||minute+5>r.scheduleCloseMinute)throw new ConflictException('This slot is outside restaurant operating hours');
- return {deliveryMode:'SCHEDULED',scheduledDeliveryAt:at,deliveryWindowStart:new Date(t-5*MINUTE),deliveryWindowEnd:new Date(t+5*MINUTE),preparationStartAt:start,expectedPickupAt:pickup,dispatchReleaseAt:new Date(Math.max(start.getTime(),pickup.getTime()-(cfg.fast?0:5)*MINUTE))};
+ return {deliveryMode:'SCHEDULED',scheduledDeliveryAt:at,deliveryWindowStart:new Date(t-5*MINUTE),deliveryWindowEnd:new Date(t+5*MINUTE),preparationStartAt:start,expectedPickupAt:pickup,// Fast demo (1-min prep/travel) releases invitations at preparation start so the rider has the
+ dispatchReleaseAt:cfg.fast?start:new Date(Math.max(start.getTime(),pickup.getTime()-5*MINUTE))}; // same pickup slack as normal mode's 5 minutes.
 }
 export function scheduleRequest(input:ScheduleInput){
  const mode=input.deliveryMode??'NOW';
@@ -42,7 +43,7 @@ export function scheduleIndicator(o:any,now=new Date()):string|null{
  if(o.status==='DELIVERED')return o.actualDeliveryAt&&new Date(o.actualDeliveryAt)>=start&&new Date(o.actualDeliveryAt)<=end?'DELIVERED_WITHIN_WINDOW':'DELIVERED_OUTSIDE_WINDOW';
  if(now>end)return 'DELAYED';
  if(now<new Date(o.preparationStartAt))return 'SCHEDULED';
- if((now>=new Date(o.preparationStartAt)&&['AWAITING_PAYMENT','PENDING_RESTAURANT','ACCEPTED'].includes(o.status))||(now>=new Date(o.expectedPickupAt)&&!['PICKED_UP','OUT_FOR_DELIVERY'].includes(o.status))||(now>=start&&o.status!=='OUT_FOR_DELIVERY'))return 'AT_RISK';
+ if((now>=new Date(o.preparationStartAt)&&['AWAITING_PAYMENT','PENDING_RESTAURANT','ACCEPTED'].includes(o.status))||(now>=new Date(o.expectedPickupAt)&&!['PICKED_UP','OUT_FOR_DELIVERY'].includes(o.status))||(now>=start&&now>=new Date(o.expectedPickupAt)&&o.status!=='OUT_FOR_DELIVERY'))return 'AT_RISK'; // window-start rule only once pickup is due (an accelerated plan is shorter than the ±5-min window)
  if(o.status==='PREPARING')return 'PREPARING';
  return now<new Date(o.preparationStartAt)?'SCHEDULED':'ON_TRACK';
 }
