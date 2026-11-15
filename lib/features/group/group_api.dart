@@ -39,8 +39,8 @@ class GroupApi {
   Future<Json> alternatives(String id) async => Json.from(await repo.request('GET', 'groups/$id/alternatives'));
   Future<Json> switchTo(String id, String restaurantId, int expectedVersion) async =>
       Json.from(await repo.request('POST', 'groups/$id/switch', {'restaurantId': restaurantId, 'expectedVersion': expectedVersion}));
-  Future<Json> checkout(String id, String proposalId, int expectedVersion, String idempotencyKey, {Json schedule = const {}}) async =>
-      Json.from(await repo.request('POST', 'groups/$id/checkout', {'proposalId': proposalId, 'expectedVersion': expectedVersion, 'idempotencyKey': idempotencyKey, ...schedule}));
+  Future<Json> checkout(String id, String proposalId, int expectedVersion, String idempotencyKey, {Json schedule = const {}, String? paymentMethod}) async =>
+      Json.from(await repo.request('POST', 'groups/$id/checkout', {'proposalId': proposalId, 'expectedVersion': expectedVersion, 'idempotencyKey': idempotencyKey, ...schedule, 'paymentMethod': ?paymentMethod}));
 
   // Restaurant owner
   Future<List<Json>> ownerProposals({String? restaurantId}) async =>

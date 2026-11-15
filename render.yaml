@@ -33,6 +33,8 @@ services:
         value: "60"
       - key: ROUTING_PROVIDER
         value: none          # labelled estimates until an approved routing provider is configured
+      - key: PAYMENTS_TEST_MODE_ENABLED
+        value: "true"        # hosted demo: Razorpay TEST only (rzp_test_ keys); live keys are refused
       # --- secrets / per-environment values: set in the dashboard, never committed ---
       - key: DATABASE_URL
         sync: false

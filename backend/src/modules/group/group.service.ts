@@ -1,3 +1,4 @@
+import { demoCheckoutAllowed, paymentConfig } from '../payments/razorpay.provider';
 import {reserveSchedule,scheduleRequest,ScheduleInput} from '../scheduling/schedule.policy';
 /**
  * F2 group ordering and restaurant price negotiation.
@@ -611,9 +612,12 @@ export class GroupService {
   }
 
   // ---------------------------------------------------------------- customer: checkout
-  async checkout(p: AuthenticatedPrincipal, id: string, input: ScheduleInput & { proposalId: string; expectedVersion: number; idempotencyKey: string }) {
-    if (!['development', 'test'].includes(process.env.NODE_ENV ?? '') || process.env.DEMO_CHECKOUT_ENABLED !== 'true') throw new ForbiddenException('No approved payment method is configured');
-    const requestHash = digest({ groupId: id, proposalId: input.proposalId, paymentMethod: 'DEMO_NO_PAYMENT', ...scheduleRequest(input) });
+  async checkout(p: AuthenticatedPrincipal, id: string, input: ScheduleInput & { proposalId: string; expectedVersion: number; idempotencyKey: string; paymentMethod?: 'DEMO_NO_PAYMENT' | 'RAZORPAY_TEST' }) {
+    const method = input.paymentMethod ?? 'DEMO_NO_PAYMENT';
+    if (method === 'RAZORPAY_TEST') paymentConfig(); // the organizer pays the agreed total through Razorpay TEST after the order is saved
+    else if (!demoCheckoutAllowed()) throw new ForbiddenException('No approved payment method is configured');
+    const initial = method === 'RAZORPAY_TEST' ? 'AWAITING_PAYMENT' : 'PENDING_RESTAURANT';
+    const requestHash = digest({ groupId: id, proposalId: input.proposalId, paymentMethod: method, ...scheduleRequest(input) });
     const out = await this.run(p, 'CUSTOMER', async (tx) => {
       await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${p.userId}::uuid FOR UPDATE`; // serializes with personal checkout
       const prior = await tx.order.findUnique({ where: { customerId_idempotencyKey: { customerId: p.userId, idempotencyKey: input.idempotencyKey } }, include: orderInclude });
@@ -636,13 +640,13 @@ export class GroupService {
       const schedule = await reserveSchedule(tx,g.restaurantId,input);
       const order = await tx.order.create({ data: {...schedule,
         orderNumber: 'FD-' + randomBytes(10).toString('hex').toUpperCase(), customerId: p.userId, restaurantId: g.restaurantId, restaurantName: g.restaurant.name,
-        cartId: cart.id, cartVersion: cart.version, idempotencyKey: input.idempotencyKey, requestHash, deliveryAddressSnapshot: json(q.address), paymentMethod: 'DEMO_NO_PAYMENT', status: 'PENDING_RESTAURANT',
+        cartId: cart.id, cartVersion: cart.version, idempotencyKey: input.idempotencyKey, requestHash, deliveryAddressSnapshot: json(q.address), paymentMethod: method, status: initial,
         itemSubtotalPaise: q.basePaise, customizationTotalPaise: q.variantPaise + q.addOnPaise, packagingPaise: q.packagingPaise, deliveryPaise: q.deliveryPaise, platformPaise: q.platformPaise,
         discountPaise: q.discountPaise + negotiated, negotiatedDiscountPaise: negotiated, taxPaise: q.taxPaise, finalPayablePaise: prop.agreedTotalPaise, groupProposalId: prop.id,
         pricingPolicyVersion: q.pricingPolicyVersion, pricingSnapshot: json({ ...q, group: { groupId: g.id, proposalId: prop.id, normalTotalPaise: prop.normalTotalPaise, agreedTotalPaise: prop.agreedTotalPaise, negotiatedDiscountPaise: negotiated, members: g.members.filter((m) => m.status === 'ACTIVE').length } }),
         items: { create: q.lines.map((l: any) => ({ menuItemId: l.menuItemId, name: l.name, imageKey: l.imageKey, baseUnitPaise: l.baseUnitPaise, quantity: l.quantity, lineTotalPaise: l.lineTotalPaise,
           ...(l.variant ? { variantSnapshot: json(l.variant) } : {}), addOns: { create: l.addOns.map((a: any) => ({ originalAddOnId: a.id, name: a.name, unitPricePaise: a.pricePaise })) } })) },
-        events: { create: { actorUserId: p.userId, eventType: 'ORDER_CREATED', sequence: 1, newStatus: 'PENDING_RESTAURANT', metadata: { paymentCollected: false, groupOrder: true, negotiatedDiscountPaise: negotiated } } },
+        events: { create: { actorUserId: p.userId, eventType: 'ORDER_CREATED', sequence: 1, newStatus: initial, metadata: { paymentCollected: false, groupOrder: true, negotiatedDiscountPaise: negotiated } } },
       }, include: orderInclude });
       await queueEvent(tx, order.events.find((e) => e.eventType === 'ORDER_CREATED')!.id);
       // Personal cart items are untouched; its version moves on so (cartId, cartVersion) stays unique.

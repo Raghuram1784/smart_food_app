@@ -39,7 +39,7 @@ class CounterAnswerInput { @IsIn(['accept', 'decline']) answer!: 'accept' | 'dec
 class SwitchInput { @Matches(/^[a-z0-9-]{1,64}$/) restaurantId!: string; @IsInt() @Min(1) expectedVersion!: number; }
 class ShareInput { @IsArray() @ArrayMaxSize(12) @ArrayUnique() @IsUUID('all', { each: true }) memberIds!: string[]; @IsInt() @Min(1) expectedVersion!: number; }
 class SplitInput { @IsIn(['BY_PERSON', 'EQUAL']) method!: 'BY_PERSON' | 'EQUAL'; @IsInt() @Min(1) expectedVersion!: number; }
-class GroupCheckoutInput extends ScheduleDeliveryInput { @IsUUID() proposalId!: string; @IsInt() @Min(1) expectedVersion!: number; @IsUUID() idempotencyKey!: string; }
+class GroupCheckoutInput extends ScheduleDeliveryInput { @IsUUID() proposalId!: string; @IsInt() @Min(1) expectedVersion!: number; @IsUUID() idempotencyKey!: string; @IsOptional() @IsIn(['DEMO_NO_PAYMENT', 'RAZORPAY_TEST']) paymentMethod?: 'DEMO_NO_PAYMENT' | 'RAZORPAY_TEST'; }
 class OwnerQuery { @IsOptional() @Matches(/^[a-z0-9-]{1,64}$/) restaurantId?: string; }
 class OwnerResponseInput { @IsOptional() @IsInt() @Min(100) @Max(100_000_000) counterTotalPaise?: number; @IsOptional() @IsString() @MaxLength(300) note?: string; }
 

@@ -93,6 +93,34 @@ final commerceReadProvider = FutureProvider.autoDispose.family<dynamic, String>(
     return ref.watch(commerceRepositoryProvider).request('GET', path);
   },
 );
+/// Payment methods the server accepts right now (`GET payments/methods`).
+/// If the server can't be asked (older backend, offline), both options stay
+/// visible and the server remains the authority when the order is placed.
+class PaymentMethods {
+  final bool razorpayTest, demo;
+  const PaymentMethods({required this.razorpayTest, required this.demo});
+  static const unknown = PaymentMethods(razorpayTest: true, demo: true);
+  bool get onlyTest => razorpayTest && !demo;
+  bool get choice => razorpayTest && demo;
+}
+
+final paymentMethodsProvider = FutureProvider.autoDispose<PaymentMethods>((
+  ref,
+) async {
+  try {
+    final raw = Json.from(
+      await ref.watch(commerceReadProvider('payments/methods').future) as Map,
+    );
+    final methods = (raw['methods'] as List).cast<String>();
+    return PaymentMethods(
+      razorpayTest: methods.contains('RAZORPAY_TEST'),
+      demo: methods.contains('DEMO_NO_PAYMENT'),
+    );
+  } catch (_) {
+    return PaymentMethods.unknown;
+  }
+});
+
 String commerceError(Object error) {
   if (error is DioException) {
     if (error.response?.statusCode == 401) {

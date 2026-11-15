@@ -7,14 +7,14 @@ import {AuthenticatedPrincipal} from '../auth/auth.types';
 import {CommerceStore,orderInclude} from './commerce.store';
 import {CartPricingService,digest} from './cart-pricing.service';
 import {PlaceOrderInput,OrderPage} from './commerce.dto';
-import {paymentConfig} from '../payments/razorpay.provider';
+import {demoCheckoutAllowed,paymentConfig} from '../payments/razorpay.provider';
 const json=(value:unknown)=>JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 @Injectable()
 export class OrdersService {
   constructor(@Inject(CommerceStore) readonly store:CommerceStore,@Inject(CartPricingService) readonly pricing:CartPricingService){}
   place(p:AuthenticatedPrincipal,input:PlaceOrderInput){
     if(input.paymentMethod==='RAZORPAY_TEST'){paymentConfig();}
-    else if(!['development','test'].includes(process.env.NODE_ENV??'')||process.env.DEMO_CHECKOUT_ENABLED!=='true')throw new ForbiddenException('No approved payment method is configured');
+    else if(!demoCheckoutAllowed())throw new ForbiddenException('No approved payment method is configured');
     const requestHash=digest({cartId:input.cartId,addressId:input.addressId,quoteId:input.quoteId,paymentMethod:input.paymentMethod,...scheduleRequest(input)});
     return this.store.run(p,async tx=>{
       const prior=await tx.order.findUnique({where:{customerId_idempotencyKey:{customerId:p.userId,idempotencyKey:input.idempotencyKey}},include:orderInclude});

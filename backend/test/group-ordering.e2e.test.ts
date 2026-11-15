@@ -249,6 +249,44 @@ test('group ordering: invites, shared cart, negotiation, safe checkout, alternat
       assert.equal(s.status, 'LOCKED'); assert.equal(s.proposal.status, 'EXPIRED');
     });
 
+    await t.test('Razorpay TEST group checkout: order awaits payment, demo refused in production, live keys never accepted', async () => {
+      const saved = { ...process.env };
+      try {
+        Object.assign(process.env, { RAZORPAY_KEY_ID: 'rzp_test_isolated', RAZORPAY_KEY_SECRET: 'isolated-secret' });
+        const r = (await as(A).post('groups', { restaurantId: rid, addressId: address.id }).expect(200)).body.data;
+        const g4 = r.group.id; groupIds.push(g4);
+        let s = (await as(A).post(`groups/${g4}/items`, { menuItemId: dishes[1].id, quantity: 1, addOnIds: [], expectedRevision: r.group.cartRevision }).expect(200)).body.data;
+        s = (await as(A).post(`groups/${g4}/lock`, { expectedVersion: s.version }).expect(200)).body.data;
+        s = (await as(A).post(`groups/${g4}/proposals`, { proposedTotalPaise: s.negotiationRange.minAllowedTotalPaise, expectedVersion: s.version }).expect(200)).body.data;
+        await as(owner).post(`restaurant/group-proposals/${s.proposal.id}/accept`).expect(200);
+        s = await state(A, g4);
+        const body = { proposalId: s.proposal.id, expectedVersion: s.version, idempotencyKey: randomUUID(), paymentMethod: 'RAZORPAY_TEST' };
+        await as(A).post(`groups/${g4}/checkout`, { ...body, paymentMethod: 'CARD' }).expect(400);
+        // Production: demo checkout stays refused; test payments need the explicit opt-in and an rzp_test_ key.
+        process.env.NODE_ENV = 'production';
+        await as(A).post(`groups/${g4}/checkout`, { ...body, paymentMethod: 'DEMO_NO_PAYMENT', idempotencyKey: randomUUID() }).expect(403);
+        await as(A).post(`groups/${g4}/checkout`, body).expect(503);
+        process.env.PAYMENTS_TEST_MODE_ENABLED = 'true';
+        process.env.RAZORPAY_KEY_ID = 'rzp_live_isolated';
+        await as(A).post(`groups/${g4}/checkout`, body).expect(503);
+        process.env.RAZORPAY_KEY_ID = 'rzp_test_isolated';
+        const m = (await as(A).get('payments/methods').expect(200)).body.data;
+        assert.deepEqual(m.methods, ['RAZORPAY_TEST']); assert.equal(m.demoCheckout, false); assert.equal(JSON.stringify(m).includes('rzp_'), false);
+        const o = (await as(A).post(`groups/${g4}/checkout`, body).expect(200)).body.data;
+        assert.equal(o.status, 'AWAITING_PAYMENT');
+        const order = await db.order.findUniqueOrThrow({ where: { id: o.orderId } });
+        assert.equal(order.paymentMethod, 'RAZORPAY_TEST'); assert.equal(order.paymentStatus, 'UNPAID'); assert.equal(order.finalPayablePaise, s.proposal.agreedTotalPaise);
+        assert.equal((await state(A, g4)).status, 'ORDERED');
+        // Unpaid: the restaurant cannot accept it yet.
+        const ownerView = (await as(owner).get(`operations/restaurant/orders/${o.orderId}`).expect(200)).body.data;
+        assert.equal(ownerView.availableActions.includes('accept'), false);
+        // Replay with the same key returns the same order.
+        assert.equal((await as(A).post(`groups/${g4}/checkout`, body).expect(200)).body.data.orderId, o.orderId);
+      } finally {
+        for (const k of ['NODE_ENV', 'PAYMENTS_TEST_MODE_ENABLED', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET']) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+      }
+    });
+
     await t.test('order for friends: organizer adds named guests and their food on one phone; split and negotiated checkout', async () => {
       // C organizes from their own address; guests have no account, invite or session.
       const cAddress = await db.customerAddress.create({ data: { customerId: C.id, label: 'Office', recipientName: 'Chitra', contactNumber: '9000000001', addressLine1: '2 Synthetic Lane', postalCode: '500032', city: 'Hyderabad', localityId: zone } });

@@ -64,3 +64,26 @@ test('handover cryptography preserves zeros, binds context and rejects tampering
   assert.throws(()=>c.openPin(sealed,b,key));assert.throws(()=>c.openPin('corrupt',b,enc));
   const bytes=Buffer.from(sealed,'base64');bytes[15]^=1;assert.throws(()=>c.openPin(bytes.toString('base64'),b,enc));
 });
+
+test('payment gating: test mode needs dev/test or an explicit production opt-in; live keys and production demo checkout are refused', () => {
+  const { paymentConfig, paymentMethods } = require('../dist/src/modules/payments/razorpay.provider');
+  const saved = { ...process.env };
+  const set = (env: Record<string, string | undefined>) => { for (const k of ['NODE_ENV', 'PAYMENTS_TEST_MODE_ENABLED', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'DEMO_CHECKOUT_ENABLED']) delete process.env[k]; Object.assign(process.env, env); };
+  try {
+    const keys = { RAZORPAY_KEY_ID: 'rzp_test_abc123', RAZORPAY_KEY_SECRET: 'placeholder' };
+    set({ NODE_ENV: 'development', ...keys, DEMO_CHECKOUT_ENABLED: 'true' });
+    assert.deepEqual(paymentMethods().methods, ['RAZORPAY_TEST', 'DEMO_NO_PAYMENT']);
+    set({ NODE_ENV: 'production', ...keys, DEMO_CHECKOUT_ENABLED: 'true' });
+    assert.throws(() => paymentConfig(), /not configured/);
+    assert.deepEqual(paymentMethods().methods, []);
+    set({ NODE_ENV: 'production', ...keys, PAYMENTS_TEST_MODE_ENABLED: 'true', DEMO_CHECKOUT_ENABLED: 'true' });
+    assert.equal(paymentConfig().keyId, 'rzp_test_abc123');
+    assert.deepEqual(paymentMethods().methods, ['RAZORPAY_TEST']);
+    set({ NODE_ENV: 'production', RAZORPAY_KEY_ID: 'rzp_live_abc123', RAZORPAY_KEY_SECRET: 'placeholder', PAYMENTS_TEST_MODE_ENABLED: 'true' });
+    assert.throws(() => paymentConfig(), /not configured/);
+    set({ NODE_ENV: 'staging', ...keys, PAYMENTS_TEST_MODE_ENABLED: 'true' });
+    assert.throws(() => paymentConfig(), /not configured/);
+    set({ NODE_ENV: 'production', RAZORPAY_KEY_ID: 'rzp_test_abc123', PAYMENTS_TEST_MODE_ENABLED: 'true' });
+    assert.throws(() => paymentConfig(), /not configured/);
+  } finally { for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]; Object.assign(process.env, saved); }
+});

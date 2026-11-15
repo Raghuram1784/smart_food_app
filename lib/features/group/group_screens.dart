@@ -520,6 +520,9 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
         normal = prop['normalTotalPaise'] as int;
     final c = FinderColors.of(context);
     Json? schedule = {};
+    // Hosted builds refuse demo checkout; the organizer then pays with Razorpay TEST.
+    final payWithTest = (await ref.read(paymentMethodsProvider.future)).onlyTest;
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       useRootNavigator: true,
@@ -550,7 +553,9 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
                   onChanged: (value) => setDialogState(() => schedule = value),
                 ),
                 Text(
-                  'You pay the full order total (demo checkout, no real payment). Delivery goes to your selected address.',
+                  payWithTest
+                      ? 'You pay the agreed total with Razorpay TEST (no real money) on the next screen. Delivery goes to your selected address.'
+                      : 'You pay the full order total (demo checkout, no real payment). Delivery goes to your selected address.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -581,6 +586,7 @@ class _GroupRoomScreenState extends ConsumerState<GroupRoomScreen> {
         g['version'] as int,
         newIdempotencyKey(),
         schedule: schedule!,
+        paymentMethod: payWithTest ? 'RAZORPAY_TEST' : null,
       );
       orderId = r['orderId'] as String;
     }, success: 'Group order placed');
