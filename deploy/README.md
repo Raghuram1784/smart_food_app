@@ -1,13 +1,15 @@
 # Deployment configuration (ready, not applied)
 
+> **Selected platform: Microsoft Azure** (App Service + Azure Database for PostgreSQL + Flutter release APK). See [docs/DEPLOYMENT_PLAN.md](../docs/DEPLOYMENT_PLAN.md). The Render files below are kept as an **alternative only**, not the selected architecture.
+
 This folder and the files it references put [docs/DEPLOYMENT_PLAN.md](../docs/DEPLOYMENT_PLAN.md) into practice. **Nothing has been purchased, created or deployed.** Every step below needs explicit approval first.
 
 | File | Purpose |
 |---|---|
-| [`render.yaml`](../render.yaml) | Render Blueprint: one always-on Node web service in Singapore, build/migrate/start commands, `/api/v1/health` check, secrets marked `sync: false` |
-| [`backend/.env.production.example`](../backend/.env.production.example) | Every production variable, by name, with safe defaults and no secret values |
+| [`render.yaml`](../render.yaml) | *Alternative (not selected):* Render Blueprint: one always-on Node web service in Singapore, build/migrate/start commands, `/api/v1/health` check, secrets marked `sync: false` |
+| [`backend/.env.production.example`](../backend/.env.production.example) | Used for Azure App Service Application settings: every production variable, by name, with safe defaults and no secret values |
 
-## Steps once approved
+## Render alternative: steps (only if chosen instead of Azure)
 
 1. **Database.** Create a new Postgres (Neon free tier or Render Postgres, Singapore). Copy its pooled URL into `DATABASE_URL` and its direct URL into `DIRECT_URL`.
 2. **Secrets.** Generate two different handover keys, then create new Gemini and Razorpay **test** keys. Enter everything in the Render dashboard; never commit any of it.

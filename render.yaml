@@ -1,3 +1,4 @@
+# ALTERNATIVE ONLY — the selected deployment platform is Microsoft Azure (see docs/DEPLOYMENT_PLAN.md).
 # Render Blueprint for the NeuroX backend (proposal — nothing is created until it is applied in the
 # Render dashboard after approval). One always-on instance: the outbox dispatcher, F3 scheduler and
 # F4 tracking sweep are single-process components. Secrets are entered in the dashboard (sync: false).
