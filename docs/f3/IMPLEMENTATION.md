@@ -54,7 +54,7 @@ Indicators: Scheduled before preparation; Preparing while kitchen progress is on
 
 New reusable SchedulePicker and ScheduleCard preserve existing themes and add animated expansion, date/time chips, explicit highlighted window, confirmation/My Orders badges, kitchen Scheduled Orders and rider previews. Customer cancellation has an explicit confirmation. UTC timestamps are displayed in IST regardless of device timezone. Checkout stays disabled until a slot is selected. REST remains authoritative on refresh, errors and Socket.IO reconnects.
 
-`SCHEDULE_DEMO_FAST=true` works only for NODE_ENV=development: one-minute slots, one-minute prep/travel/lead and dispatch at pickup. It still validates all rules and keeps the ±5-minute target window. Before preparation, even this accelerated window is labeled Scheduled, not prematurely At risk. Production and test ignore the flag. Normal mode is false. Stored plans are immutable when the flag changes.
+`SCHEDULE_DEMO_FAST=true` works only for NODE_ENV=development: one-minute slots, one-minute prep/travel/lead and invitations from preparation start (giving the rider pickup slack). It still validates all rules and keeps the ±5-minute target window. Before preparation, even this accelerated window is labeled Scheduled, not prematurely At risk. Production and test ignore the flag. Normal mode is false. Stored plans are immutable when the flag changes.
 
 ## Verification and evidence
 
