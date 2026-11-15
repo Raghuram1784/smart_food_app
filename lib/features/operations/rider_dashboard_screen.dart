@@ -138,8 +138,8 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
       );
       _dialogOpen = false;
       if (choice != null && mounted) await _respond(offer, choice);
-      final pending = mounted ? ref.read(riderOffersProvider).asData?.value : null;
-      if (pending != null) _announce(pending);
+      // Remaining requests are announced by the offers listener after the refresh in _respond:
+      // after a decline they reappear; after an accept the rider is busy and the list is empty.
     });
   }
 

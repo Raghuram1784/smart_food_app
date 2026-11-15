@@ -179,6 +179,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('offer-dialog-accept')));
     await tester.pumpAndSettle();
     expect(repo.calls, contains('POST operations/delivery/offers/offer-b/accept'));
+    expect(find.text('New Delivery Request'), findsNothing, reason: 'no further popup once the rider is on a delivery');
     expect(tester.takeException(), isNull);
   });
 }
